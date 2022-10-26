@@ -22,6 +22,13 @@ namespace UltimateXR.UI
     /// </summary>
     public class UxrLaserPointer : UxrAvatarComponent<UxrLaserPointer>
     {
+        #region OMS Custom
+
+        private Vector3? _laserHitPoint;
+
+        public Vector3? LaserHitPoint => _laserHitPoint;
+        #endregion
+        
         #region Inspector Properties/Serialized Fields
 
         [SerializeField] protected UxrHandSide        _handSide             = UxrHandSide.Left;
@@ -45,7 +52,7 @@ namespace UltimateXR.UI
         /// <summary>
         ///     Gets whether the laser is currently enabled.
         /// </summary>
-        public bool IsLaserEnabled => _isAutoEnabled || (Avatar.ControllerInput.IsControllerEnabled(_handSide) && Avatar.ControllerInput.GetButtonsEvent(_handSide, _showLaserInput, _showLaserButtonEvent));
+        public bool IsLaserEnabled => _isLaserEnabled && (_isAutoEnabled || (Avatar.ControllerInput.IsControllerEnabled(_handSide) && Avatar.ControllerInput.GetButtonsEvent(_handSide, _showLaserInput, _showLaserButtonEvent)));
 
         /// <summary>
         ///     Gets the <see cref="Transform" /> that is used to compute the direction in which the laser points. The laser will
@@ -92,6 +99,11 @@ namespace UltimateXR.UI
 
         #region Public Methods
 
+        public void SetLaserActive(bool active)
+        {
+            _isLaserEnabled = active;
+        }
+        
         /// <summary>
         ///     Checks whether the user performed a click this frame (released the input button after pressing).
         /// </summary>
@@ -192,6 +204,7 @@ namespace UltimateXR.UI
             if (laserPointerEventData != null && laserPointerEventData.pointerCurrentRaycast.isValid && IsLaserEnabled)
             {
                 currentRayLength = laserPointerEventData.pointerCurrentRaycast.distance;
+                _laserHitPoint = laserPointerEventData.pointerCurrentRaycast.worldPosition;
 
                 if (Avatar.CameraComponent && _hitQuad)
                 {
@@ -212,6 +225,7 @@ namespace UltimateXR.UI
                 if (IsLaserEnabled && Physics.Raycast(LaserPos, LaserDir, out RaycastHit hitInfo, currentRayLength, -1, QueryTriggerInteraction.Ignore))
                 {
                     currentRayLength = hitInfo.distance;
+                    _laserHitPoint = hitInfo.point;
 
                     if (Avatar.CameraComponent && _hitQuad)
                     {
@@ -230,6 +244,8 @@ namespace UltimateXR.UI
                     {
                         _hitQuad.SetActive(false);
                     }
+
+                    _laserHitPoint = null;
                 }
             }
 
@@ -290,6 +306,7 @@ namespace UltimateXR.UI
         private LineRenderer _lineRenderer;
         private Renderer     _laserHitRenderer;
         private bool         _isAutoEnabled;
+        private bool         _isLaserEnabled;
         private GameObject   _hitQuad;
 
         #endregion

@@ -56,7 +56,8 @@ namespace UltimateXR.Editor.Sdks
         {
 #if UNITY_5_6_OR_NEWER
 
-            if (EditorUserBuildSettings.activeBuildTarget is BuildTarget.StandaloneWindows or BuildTarget.StandaloneWindows64)
+            if (EditorUserBuildSettings.activeBuildTarget is BuildTarget.StandaloneWindows ||
+                EditorUserBuildSettings.activeBuildTarget is BuildTarget.StandaloneWindows64)
             {
                 CurrentState = State.NotInstalled;
 

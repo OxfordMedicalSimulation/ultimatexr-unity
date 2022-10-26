@@ -754,7 +754,7 @@ namespace UltimateXR.Extensions.Unity
             self.ThrowIfNull(nameof(self));
             string path = self.name;
 
-            while (self.parent is not null)
+            while (self.parent != null)
             {
                 self = self.parent;
                 path = $"{self.name}/{path}";
@@ -772,7 +772,7 @@ namespace UltimateXR.Extensions.Unity
         public static string GetUniqueScenePath(this Transform self)
         {
             self.ThrowIfNull(nameof(self));
-            string prePath = self.parent is not null ? self.parent.GetUniqueScenePath() : $"{self.gameObject.scene.name}:";
+            string prePath = self.parent != null ? self.parent.GetUniqueScenePath() : $"{self.gameObject.scene.name}:";
             return $"{prePath}/{self.GetSiblingIndex():00}.-{self.name}";
         }
 

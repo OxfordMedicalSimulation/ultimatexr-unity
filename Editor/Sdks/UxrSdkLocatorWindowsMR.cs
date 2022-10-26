@@ -52,7 +52,9 @@ namespace UltimateXR.Editor.Sdks
         {
 #if UNITY_2017_2_OR_NEWER
 
-            if (EditorUserBuildSettings.activeBuildTarget is BuildTarget.WSAPlayer or BuildTarget.StandaloneWindows or BuildTarget.StandaloneWindows64)
+            if (EditorUserBuildSettings.activeBuildTarget is BuildTarget.WSAPlayer ||
+                EditorUserBuildSettings.activeBuildTarget is BuildTarget.StandaloneWindows ||
+                EditorUserBuildSettings.activeBuildTarget is BuildTarget.StandaloneWindows64)
             {
                 CurrentState   = State.Available;
                 CurrentVersion = 0;

@@ -59,7 +59,7 @@ namespace UltimateXR.Devices.Integrations.Oculus
         {
             get
             {
-                if (UxrTrackingDevice.HeadsetDeviceName is "Oculus Rift S" or "Oculus Quest")
+                if (UxrTrackingDevice.HeadsetDeviceName is "Oculus Rift S" || UxrTrackingDevice.HeadsetDeviceName is "Oculus Quest")
                 {
                     yield return "Oculus Touch Controller - Left";
                     yield return "Oculus Touch Controller - Right";

@@ -10,6 +10,7 @@ using UltimateXR.Extensions.System;
 using UltimateXR.Extensions.Unity.Math;
 using UltimateXR.Manipulation;
 using UltimateXR.UI.UnityInputModule;
+using UnityEditor.Experimental.SceneManagement;
 using UnityEngine;
 #if UNITY_EDITOR
 using UnityEditor.SceneManagement;
@@ -234,7 +235,7 @@ namespace UltimateXR.Extensions.Unity
 
             if (renderer != null && !forceRecurseIntoChildren)
             {
-                return renderer.localBounds;
+                return renderer.bounds;
             }
 
             IEnumerable<Renderer> renderers = self.GetComponentsInChildren<Renderer>().Where(r => !r.hideFlags.HasFlag(HideFlags.HideInHierarchy));
@@ -244,7 +245,7 @@ namespace UltimateXR.Extensions.Unity
                 return new Bounds();
             }
 
-            IEnumerable<Vector3> allMinMaxToLocal = renderers.Select(r => self.transform.InverseTransformPoint(r.transform.TransformPoint(r.localBounds.min))).Concat(renderers.Select(r => self.transform.InverseTransformPoint(r.transform.TransformPoint(r.localBounds.max))));
+            IEnumerable<Vector3> allMinMaxToLocal = renderers.Select(r => self.transform.InverseTransformPoint(r.transform.TransformPoint(r.bounds.min))).Concat(renderers.Select(r => self.transform.InverseTransformPoint(r.transform.TransformPoint(r.bounds.max))));
             Vector3     min       = Vector3Ext.Min(allMinMaxToLocal);
             Vector3     max       = Vector3Ext.Max(allMinMaxToLocal);
 

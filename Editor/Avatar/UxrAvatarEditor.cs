@@ -24,7 +24,7 @@ namespace UltimateXR.Editor.Avatar
     /// <summary>
     ///     Custom editor for <see cref="UxrAvatar" />.
     /// </summary>
-    [CustomEditor(typeof(UxrAvatar))]
+    [CustomEditor(typeof(UxrAvatar), true)]
     public class UxrAvatarEditor : UnityEditor.Editor
     {
         #region Public Types & Data

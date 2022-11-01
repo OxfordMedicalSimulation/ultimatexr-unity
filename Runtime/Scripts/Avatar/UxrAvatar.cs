@@ -372,7 +372,7 @@ namespace UltimateXR.Avatar
         /// <summary>
         ///     Gets the default hand pose name or null if there isn't any default hand pose set.
         /// </summary>
-        public string DefaultHandPoseName => DefaultHandPose != null ? DefaultHandPose.name : null;
+        public virtual string DefaultHandPoseName => DefaultHandPose != null ? DefaultHandPose.name : null;
 
         /// <summary>
         ///     Gets the <see cref="Transform" /> of the camera controller (the parent transform of the avatar's camera).
@@ -1004,7 +1004,7 @@ namespace UltimateXR.Avatar
         ///     <see cref="HandPoseChanged" />, <see cref="GlobalHandPoseChanging" />, <see cref="GlobalHandPoseChanged" />).
         /// </param>
         /// <returns>Whether the pose was found</returns>
-        public bool SetCurrentHandPose(UxrHandSide handSide, string poseName, float blendValue = 0.0f, bool propagateEvents = true)
+        public virtual bool SetCurrentHandPose(UxrHandSide handSide, string poseName, float blendValue = 0.0f, bool propagateEvents = true)
         {
             UxrRuntimeHandPose handPose = GetRuntimeHandPose(poseName);
 

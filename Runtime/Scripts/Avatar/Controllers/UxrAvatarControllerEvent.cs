@@ -23,6 +23,7 @@ namespace UltimateXR.Avatar.Controllers
         [SerializeField]                     private UxrInputButtons  _buttons;
         [SerializeField]                     private UxrAnimationType _animationType;
         [SerializeField]                     private UxrHandPoseAsset _handPose;
+        [SerializeField]                     private AnimationClip    _animationClip;
         [SerializeField] [Range(0.0f, 1.0f)] private float            _poseBlendValue;
 
         #endregion
@@ -32,7 +33,9 @@ namespace UltimateXR.Avatar.Controllers
         /// <summary>
         ///     Gets the hand pose name that should be used on the event.
         /// </summary>
-        public string PoseName => string.IsNullOrEmpty(_poseNameOverride) ? _handPose != null ? _handPose.name : null : _poseNameOverride;
+        public string PoseName => !string.IsNullOrEmpty(_poseNameOverride) ? _poseNameOverride :
+            _animationClip != null ? _animationClip.name : 
+                _handPose != null ? _handPose.name : null;
 
         /// <summary>
         ///     Gets or sets the button(s) that trigger the animation event.

@@ -58,7 +58,7 @@ namespace UltimateXR.Editor.Avatar.Controllers
                                                               }
 
                                                               UxrHandPoseAsset handPoseAsset = avatar.GetHandPose(selectedController.ControllerEvents[index].PoseName);
-                                                              return EditorGUIUtility.singleLineHeight * 3.5f + (handPoseAsset && handPoseAsset.PoseType == UxrHandPoseType.Blend ? EditorGUIUtility.singleLineHeight : 0.0f);
+                                                              return EditorGUIUtility.singleLineHeight * 4.5f + (handPoseAsset && handPoseAsset.PoseType == UxrHandPoseType.Blend ? EditorGUIUtility.singleLineHeight : 0.0f);
                                                           };
         }
 
@@ -248,15 +248,22 @@ namespace UltimateXR.Editor.Avatar.Controllers
             nLineIndex++;
 
             // List animator parameters
-
-            UxrEditorUtils.HandPoseDropdown(GetCurrentRect(), new GUIContent("Hand Pose"), avatar, element.FindPropertyRelative("_handPose"), out UxrHandPoseAsset selectedHandPose);
-
-            nLineIndex++;
+            
+            UxrEditorUtils.HandPoseDropdown(GetCurrentRect(), new GUIContent("Hand Pose"), avatar,
+                element.FindPropertyRelative("_handPose"), out UxrHandPoseAsset selectedHandPose);
 
             if (selectedHandPose && selectedHandPose.PoseType == UxrHandPoseType.Blend)
             {
-                element.FindPropertyRelative("_poseBlendValue").floatValue = EditorGUI.Slider(GetCurrentRect(), new GUIContent("Pose Blend"), element.FindPropertyRelative("_poseBlendValue").floatValue, 0.0f, 1.0f);
+                nLineIndex++;
+                
+                element.FindPropertyRelative("_poseBlendValue").floatValue = EditorGUI.Slider(GetCurrentRect(),
+                    new GUIContent("Pose Blend"), element.FindPropertyRelative("_poseBlendValue").floatValue, 0.0f,
+                    1.0f);
             }
+            
+            nLineIndex++;
+            
+            EditorGUI.PropertyField(GetCurrentRect(), element.FindPropertyRelative("_animationClip"), new GUIContent("Animation clip"));
         }
 
         #endregion

@@ -27,7 +27,11 @@ namespace UltimateXR.Extensions.Unity
         public static T GetOrAddComponent<T>(this Component self)
             where T : Component
         {
-            return self.GetComponent<T>() ?? self.gameObject.AddComponent<T>();
+            if (self.TryGetComponent<T>(out var component))
+            {
+                return component;
+            }
+            return self.gameObject.AddComponent<T>();
         }
 
         /// <summary>

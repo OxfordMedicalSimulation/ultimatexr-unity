@@ -9,7 +9,11 @@ namespace UltimateXR.Avatar
 {
     public partial class UxrAnimatedAvatar : UxrAvatar
     {
-        [SerializeField] private List<AnimationClip> _tempClipStore = new List<AnimationClip>();
+        public delegate AnimationClip LoadAnimationClipDelegate(string key);
+        public LoadAnimationClipDelegate LoadAnimationClip { get; set; }
+
+        public delegate string GetDefaultPoseNameDelegate();
+        public GetDefaultPoseNameDelegate GetDefaultPoseName { get; set; }
         
         private UnityEngine.Animation _leftAnim; 
         private UnityEngine.Animation _rightAnim;
@@ -22,14 +26,14 @@ namespace UltimateXR.Avatar
         {
             base.Awake();
 
-            _leftAnim = LeftHandBone.GetComponentInParent<UnityEngine.Animation>();
+            _leftAnim = LeftHandBone.GetComponentInChildren<UnityEngine.Animation>();
             if (_leftAnim)
             {
                 _leftHandler = _leftAnim.GetOrAddComponent<UxrAnimatedAvatarEventHandler>();
                 _leftHandler.HandSide = UxrHandSide.Left;
             }
             
-            _rightAnim = RightHandBone.GetComponentInParent<UnityEngine.Animation>();
+            _rightAnim = RightHandBone.GetComponentInChildren<UnityEngine.Animation>();
             if (_rightAnim)
             {
                 _rightHandler = _rightAnim.GetOrAddComponent<UxrAnimatedAvatarEventHandler>();
@@ -39,7 +43,7 @@ namespace UltimateXR.Avatar
 
         public override string DefaultHandPoseName
         {
-            get => _tempClipStore.FirstOrDefault()?.name;
+            get => GetDefaultPoseName.Invoke();
         }
 
         public override bool SetCurrentHandPose(UxrHandSide handSide, string poseName, float blendValue = 0.0f, bool propagateEvents = true)
@@ -61,26 +65,25 @@ namespace UltimateXR.Avatar
             var anim = handSide == UxrHandSide.Left ? _leftAnim : _rightAnim;
             var handler = handSide == UxrHandSide.Left ? _leftHandler : _rightHandler;
 
-            if (!_tempClipStore.Exists(x => x.name.Equals(poseName)))
-                poseName = "HandTestAnim";
-
             if (anim)
             {
                 AnimationClip clip = anim.GetClip(poseName); 
                 if (!clip)
                 {
-                    clip = _tempClipStore.Find(x => x.name.Equals(poseName));
+                    clip = LoadAnimationClip.Invoke(poseName);
                     if (clip)
                     {
                         clip.legacy = true;
                         clip.wrapMode = WrapMode.ClampForever;
-                        clip.events = Array.Empty<AnimationEvent>();
-                        AnimationEvent endEvent = new AnimationEvent();
-                        endEvent.time = clip.length;
-                        endEvent.functionName = "OnAnimationCompleted";
-                        endEvent.stringParameter = poseName;
-                        endEvent.intParameter = (int)handSide;
-                        clip.AddEvent(endEvent);
+                        if (clip.events.FirstOrDefault(x => x.functionName.Equals("OnAnimationCompleted")) == null)
+                        {
+                            AnimationEvent endEvent = new AnimationEvent();
+                            endEvent.time = clip.length;
+                            endEvent.functionName = "OnAnimationCompleted";
+                            endEvent.stringParameter = poseName;
+                            endEvent.intParameter = (int)handSide;
+                            clip.AddEvent(endEvent);
+                        }
                         anim.AddClip(clip, poseName);
                     }
                 }

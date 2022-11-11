@@ -156,12 +156,14 @@ namespace UltimateXR.Devices
 
             foreach (BoneCalibration boneCalibration in _leftCalibrationData)
             {
-                _calibrationCache.Add(boneCalibration.Transform, boneCalibration);
+                if (boneCalibration.Transform)
+                    _calibrationCache.Add(boneCalibration.Transform, boneCalibration);
             }
 
             foreach (BoneCalibration boneCalibration in _rightCalibrationData)
             {
-                _calibrationCache.Add(boneCalibration.Transform, boneCalibration);
+                if (boneCalibration.Transform)
+                    _calibrationCache.Add(boneCalibration.Transform, boneCalibration);
             }
         }
 

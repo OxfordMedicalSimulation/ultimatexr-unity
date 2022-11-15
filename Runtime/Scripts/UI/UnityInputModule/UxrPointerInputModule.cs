@@ -103,7 +103,7 @@ namespace UltimateXR.UI.UnityInputModule
 
             foreach (UxrLaserPointer laserPointer in UxrLaserPointer.AllComponents)
             {
-                if (laserPointer.Avatar.AvatarMode == UxrAvatarMode.Local)
+                if (laserPointer.IsLaserEnabled && laserPointer.Avatar.AvatarMode == UxrAvatarMode.Local)
                 {
                     ProcessPointerEvents(GetLaserPointerEventData(laserPointer));
                 }

@@ -25,7 +25,6 @@ namespace UltimateXR.UI
         #region OMS Custom
 
         private Vector3? _laserHitPoint;
-
         public Vector3? LaserHitPoint => _laserHitPoint;
         #endregion
         
@@ -52,7 +51,7 @@ namespace UltimateXR.UI
         /// <summary>
         ///     Gets whether the laser is currently enabled.
         /// </summary>
-        public bool IsLaserEnabled => _isLaserEnabled && (_isAutoEnabled || (Avatar.ControllerInput.IsControllerEnabled(_handSide) && Avatar.ControllerInput.GetButtonsEvent(_handSide, _showLaserInput, _showLaserButtonEvent)));
+        public virtual bool IsLaserEnabled => _isLaserEnabled && (_isAutoEnabled || (Avatar.ControllerInput.IsControllerEnabled(_handSide) && Avatar.ControllerInput.GetButtonsEvent(_handSide, _showLaserInput, _showLaserButtonEvent)));
 
         /// <summary>
         ///     Gets the <see cref="Transform" /> that is used to compute the direction in which the laser points. The laser will
@@ -102,13 +101,16 @@ namespace UltimateXR.UI
         public void SetLaserActive(bool active)
         {
             _isLaserEnabled = active;
+            
+            if (_lineRenderer)
+                _lineRenderer.enabled = IsLaserEnabled;
         }
         
         /// <summary>
         ///     Checks whether the user performed a click this frame (released the input button after pressing).
         /// </summary>
         /// <returns>Whether the user performed a click action</returns>
-        public bool IsClickedThisFrame()
+        public virtual bool IsClickedThisFrame()
         {
             return Avatar.ControllerInput.GetButtonsEvent(_handSide, _clickInput, UxrButtonEventType.PressDown);
         }
@@ -117,7 +119,7 @@ namespace UltimateXR.UI
         ///     Checks whether the user performed a press this frame (pressed the input button).
         /// </summary>
         /// <returns>Whether the user performed a press action</returns>
-        public bool IsReleasedThisFrame()
+        public virtual bool IsReleasedThisFrame()
         {
             return Avatar.ControllerInput.GetButtonsEvent(_handSide, _clickInput, UxrButtonEventType.PressUp);
         }
@@ -306,8 +308,9 @@ namespace UltimateXR.UI
         private LineRenderer _lineRenderer;
         private Renderer     _laserHitRenderer;
         private bool         _isAutoEnabled;
-        private bool         _isLaserEnabled;
         private GameObject   _hitQuad;
+        
+        protected bool         _isLaserEnabled;
 
         #endregion
     }

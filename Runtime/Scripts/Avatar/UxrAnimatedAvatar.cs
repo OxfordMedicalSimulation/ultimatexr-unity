@@ -14,31 +14,16 @@ namespace UltimateXR.Avatar
 
         public delegate string GetDefaultPoseNameDelegate();
         public GetDefaultPoseNameDelegate GetDefaultPoseName { get; set; }
-        
-        private UnityEngine.Animation _leftAnim; 
-        private UnityEngine.Animation _rightAnim;
-        private UxrAnimatedAvatarEventHandler _leftHandler;
-        private UxrAnimatedAvatarEventHandler _rightHandler;
 
-        private string _currentAnimName;
+        private HandState _leftHandState;
+        private HandState _rightHandState;
 
         protected override void Awake()
         {
             base.Awake();
 
-            _leftAnim = LeftHandBone.GetComponentInChildren<UnityEngine.Animation>();
-            if (_leftAnim)
-            {
-                _leftHandler = _leftAnim.GetOrAddComponent<UxrAnimatedAvatarEventHandler>();
-                _leftHandler.HandSide = UxrHandSide.Left;
-            }
-            
-            _rightAnim = RightHandBone.GetComponentInChildren<UnityEngine.Animation>();
-            if (_rightAnim)
-            {
-                _rightHandler = _rightAnim.GetOrAddComponent<UxrAnimatedAvatarEventHandler>();
-                _rightHandler.HandSide = UxrHandSide.Right;
-            }
+            _leftHandState = new HandState(LeftHandBone, UxrHandSide.Left);
+            _rightHandState = new HandState(RightHandBone, UxrHandSide.Right);
         }
 
         public override string DefaultHandPoseName
@@ -48,67 +33,59 @@ namespace UltimateXR.Avatar
 
         public override bool SetCurrentHandPose(UxrHandSide handSide, string poseName, float blendValue = 0.0f, bool propagateEvents = true)
         {
-            if (SetCurrentHandAnimation(handSide, poseName))
-            {
-                return true;
-            }
-
-            return false;
-            //return base.SetCurrentHandPose(handSide, poseName, blendValue, propagateEvents);
+            return SetCurrentHandAnimation(handSide, poseName);
         }
 
         public bool SetCurrentHandAnimation(UxrHandSide handSide, string poseName, Action onComplete = null)
         {
-            if (poseName.Equals(_currentAnimName))
+            var handState = handSide == UxrHandSide.Left ? _leftHandState : _rightHandState;
+
+            if (handState.CurrentAnimName.Equals(poseName))
                 return true;
-
-            var anim = handSide == UxrHandSide.Left ? _leftAnim : _rightAnim;
-            var handler = handSide == UxrHandSide.Left ? _leftHandler : _rightHandler;
-
-            if (anim)
+            
+            if (TryEnsureClipExistsForHand(handState, poseName))
             {
-                AnimationClip clip = anim.GetClip(poseName); 
-                if (!clip)
+                if (handState.EventHandler && onComplete != null)
                 {
-                    clip = LoadAnimationClip.Invoke(poseName);
-                    if (clip)
-                    {
-                        clip.legacy = true;
-                        clip.wrapMode = WrapMode.ClampForever;
-                        if (clip.events.FirstOrDefault(x => x.functionName.Equals("OnAnimationCompleted")) == null)
-                        {
-                            AnimationEvent endEvent = new AnimationEvent();
-                            endEvent.time = clip.length;
-                            endEvent.functionName = "OnAnimationCompleted";
-                            endEvent.stringParameter = poseName;
-                            endEvent.intParameter = (int)handSide;
-                            clip.AddEvent(endEvent);
-                        }
-                        anim.AddClip(clip, poseName);
-                    }
+                    handState.EventHandler.OnAnimationCompleted(handState.CurrentAnimName);
+                    handState.EventHandler.RegisterOnComplete(poseName, onComplete);
                 }
-
-                if (clip)
-                {
-                    if (handler && onComplete != null)
-                    {
-                        handler.OnAnimationCompleted(_currentAnimName);
-                        handler.RegisterOnComplete(poseName, onComplete);
-                    }
-                    anim.CrossFade(poseName, 0.1f);
-                    _currentAnimName = poseName;
-                }
-                else
-                {
-                    Debug.LogError($"Hand animation clip \"{poseName}\" not found");
-                }
-
+                handState.Animation.CrossFade(poseName, 0.1f);
+                handState.CurrentAnimName = poseName;
                 return true;
             }
 
             return false;
         }
 
-        
+        private bool TryEnsureClipExistsForHand(HandState hand, string animName)
+        {
+            if (hand.Animation.GetClip(animName))
+            {
+                return true;
+            }
+            
+            AnimationClip clip = LoadAnimationClip.Invoke(animName);
+            if (clip)
+            {
+                clip.legacy = true;
+                clip.wrapMode = WrapMode.ClampForever;
+                if (clip.events.FirstOrDefault(x => x.functionName.Equals("OnAnimationCompleted")) == null)
+                {
+                    AnimationEvent endEvent = new AnimationEvent();
+                    endEvent.time = clip.length;
+                    endEvent.functionName = "OnAnimationCompleted";
+                    endEvent.stringParameter = animName;
+                    endEvent.intParameter = (int)hand.EventHandler.HandSide;
+                    clip.AddEvent(endEvent);
+                }
+                hand.Animation.AddClip(clip, animName);
+                return true;
+            }
+            
+            Debug.LogError($"Hand animation clip \"{animName}\" not found");
+
+            return false;
+        }
     }
 }

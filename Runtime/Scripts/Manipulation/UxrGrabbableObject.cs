@@ -116,7 +116,7 @@ namespace UltimateXR.Manipulation
         // Placement
 
         [SerializeField] private bool                     _useParenting;
-        [SerializeField] private bool                     _autoCreateStartAnchor;
+        [SerializeField] public bool                     _autoCreateStartAnchor;
         [SerializeField] private UxrGrabbableObjectAnchor _startAnchor;
         [SerializeField] private string                   _tag                       = "";
         [SerializeField] private bool                     _dropAlignTransformUseSelf = true;
@@ -476,7 +476,11 @@ namespace UltimateXR.Manipulation
         public Rigidbody RigidBodySource
         {
             get => _rigidBodySource;
-            set => _rigidBodySource = value;
+            set
+            {
+                _rigidBodySource = value;
+                _initialIsKinematic = _rigidBodySource.isKinematic;
+            }
         }
 
         /// <summary>
@@ -685,14 +689,15 @@ namespace UltimateXR.Manipulation
         /// <inheritdoc />
         public void ResetPositionAndState(bool propagateEvents)
         {
-            transform.localPosition = InitialLocalPosition;
-            transform.localRotation = InitialLocalRotation;
             IsKinematic             = _initialIsKinematic;
 
             if (_startAnchor)
             {
                 UxrGrabManager.Instance.PlaceObject(this, _startAnchor, UxrPlacementType.Immediate, propagateEvents);
             }
+            
+            transform.localPosition = InitialLocalPosition;
+            transform.localRotation = InitialLocalRotation;
         }
 
         /// <inheritdoc />
@@ -2144,7 +2149,11 @@ namespace UltimateXR.Manipulation
 
                 if (_translationConstraintMode == UxrTranslationConstraintMode.RestrictToBox && _restrictToBox != null)
                 {
-                    targetLocalPos = transform.GetParentWorldMatrix().inverse.MultiplyPoint(transform.position.ClampToBox(_restrictToBox));
+                    Vector3 newPos = transform.position.ClampToBox(_restrictToBox);
+                    targetLocalPos = transform.GetParentWorldMatrix().inverse.MultiplyPoint(newPos);
+                    Debug.DrawLine(newPos, _restrictToBox.transform.position, Color.cyan);
+                    Debug.DrawLine(newPos, newPos + (Vector3.up * 0.001f), Color.cyan);
+                    Debug.DrawLine(_restrictToBox.transform.position, _restrictToBox.transform.position + (Vector3.up * 0.001f), Color.magenta);
                 }
                 else if (_translationConstraintMode == UxrTranslationConstraintMode.RestrictToSphere && _restrictToSphere != null)
                 {

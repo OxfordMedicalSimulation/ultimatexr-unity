@@ -186,6 +186,7 @@ namespace UltimateXR.UI.UnityInputModule
             {
                 rayCaster.ignoreReversedGraphics = oldRaycaster.ignoreReversedGraphics;
                 rayCaster.blockingObjects        = oldRaycaster.blockingObjects;
+                rayCaster.blockingMask           = oldRaycaster.blockingMask;
                 oldRaycaster.enabled             = false;
             }
 

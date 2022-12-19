@@ -133,6 +133,12 @@ namespace UltimateXR.Manipulation
         ///     event doesn't use this property. Check the event documentation for use of this property.
         /// </summary>
         public bool IsSwitchHands { get; }
+        
+        /// <summary>
+        ///     Gets whether the event was the result of passing the object from one anchor to another. Can be meaningless if the
+        ///     event doesn't use this property. Added by OMS (Susie).
+        /// </summary>
+        public bool IsSwitchAnchor { get; }
 
         /// <summary>
         ///     Gets whether the manipulation changed an object's ownership. This is if <see cref="IsMultiHands" /> and
@@ -171,12 +177,14 @@ namespace UltimateXR.Manipulation
         /// <param name="grabPointIndex">Grab point index</param>
         /// <param name="isMultiHands">Whether the event was a result of a manipulation with more than one hand</param>
         /// <param name="isSwitchHands">Whether the event was a result of passing the grabbable object from one hand to the other</param>
+        /// <param name="isSwitchAnchor">Whether the event was a result of moving the grabbable object from one anchor to another</param>
         public UxrManipulationEventArgs(UxrGrabbableObject       grabbableObject,
                                         UxrGrabbableObjectAnchor grabbableAnchor,
                                         UxrGrabber               grabber,
                                         int                      grabPointIndex = 0,
                                         bool                     isMultiHands   = false,
-                                        bool                     isSwitchHands  = false)
+                                        bool                     isSwitchHands  = false,
+                                        bool                     isSwitchAnchor = false)
         {
             GrabbableObject = grabbableObject;
             GrabbableAnchor = grabbableAnchor;
@@ -184,6 +192,7 @@ namespace UltimateXR.Manipulation
             GrabPointIndex  = grabPointIndex;
             IsMultiHands    = isMultiHands;
             IsSwitchHands   = isSwitchHands;
+            IsSwitchAnchor = isSwitchAnchor;
         }
 
         #endregion

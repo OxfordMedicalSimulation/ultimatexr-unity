@@ -571,7 +571,7 @@ namespace UltimateXR.Manipulation
 
             if (oldAnchor != null)
             {
-                UxrManipulationEventArgs manipulationEventArgs = new UxrManipulationEventArgs(grabbableObject, oldAnchor, grabber, grabbedPoint);
+                UxrManipulationEventArgs manipulationEventArgs = new UxrManipulationEventArgs(grabbableObject, oldAnchor, grabber, grabbedPoint, false, false, true);
 
                 OnObjectRemoving(manipulationEventArgs, propagateEvents);
 

@@ -9,6 +9,7 @@ using System.Threading;
 using UltimateXR.Avatar;
 using UltimateXR.Core;
 using UltimateXR.Extensions.Unity.Math;
+using UltimateXR.Extensions.Unity.Render;
 using UltimateXR.Manipulation;
 using UltimateXR.Manipulation.HandPoses;
 using UnityEngine;
@@ -102,7 +103,7 @@ namespace UltimateXR.Editor.Manipulation.HandPoses
                     Transform handTransform = avatar.GetHandBone(handSide);
                     previewMesh.UnityMesh = new Mesh();
                     skinnedMeshRenderer.BakeMesh(previewMesh.UnityMesh);
-                    previewMesh.CreateMesh(skinnedMeshRenderer);
+                    previewMesh.CreateMesh(avatar, skinnedMeshRenderer, handSide);
                     previewMesh.CreateBoneList(avatar, skinnedMeshRenderer, avatarHandPose, handSide);
                     previewMesh.UnityMesh.name = UxrGrabPointIndex.GetIndexDisplayName(grabbableObject, grabPoint) + (handSide == UxrHandSide.Left ? UxrGrabbableObject.LeftGrabPoseMeshSuffix : UxrGrabbableObject.RightGrabPoseMeshSuffix);
 
@@ -329,11 +330,20 @@ namespace UltimateXR.Editor.Manipulation.HandPoses
         /// <summary>
         ///     Creates preview mesh data for a given skinned mesh renderer.
         /// </summary>
+        /// <param name="avatar">Avatar to generate the data for</param>
         /// <param name="skinnedMeshRenderer">Skin component</param>
-        private void CreateMesh(SkinnedMeshRenderer skinnedMeshRenderer)
+        /// <param name="handSide">Which hand to generate the bone list for</param>
+        private void CreateMesh(UxrAvatar avatar, SkinnedMeshRenderer skinnedMeshRenderer, UxrHandSide handSide)
         {
-            _initialVertices = skinnedMeshRenderer.sharedMesh.vertices;
-            _initialNormals  = skinnedMeshRenderer.sharedMesh.normals;
+            // Extract only hand portion of the mesh
+            
+            UnityMesh = MeshExt.ExtractSubMesh(skinnedMeshRenderer, avatar.GetHand(handSide).Wrist, MeshExt.ExtractSubMeshOperation.BoneAndChildren);
+            
+            // Create dynamic mesh data arrays
+
+            _initialVertices = UnityMesh.vertices;
+            _initialNormals  = UnityMesh.normals;
+            _boneWeights     = UnityMesh.boneWeights;
             _vertices        = new Vector3[_initialVertices.Length];
             _normals         = new Vector3[_initialVertices.Length];
         }
@@ -347,17 +357,6 @@ namespace UltimateXR.Editor.Manipulation.HandPoses
         /// <param name="handSide">Which hand to generate the bone list for</param>
         private void CreateBoneList(UxrAvatar avatar, SkinnedMeshRenderer skinnedMeshRenderer, UxrHandPoseAsset handPoseAsset, UxrHandSide handSide)
         {
-            // Create bone weights internal array
-
-            _boneWeights = new BoneWeight[skinnedMeshRenderer.sharedMesh.vertexCount];
-
-            BoneWeight[] boneWeights = skinnedMeshRenderer.sharedMesh.boneWeights;
-
-            for (int i = 0; i < boneWeights.Length; ++i)
-            {
-                _boneWeights[i] = boneWeights[i];
-            }
-
             // Create bone information
 
             Matrix4x4 handBindPose = GetHandBindPose(skinnedMeshRenderer, avatar.GetHandBone(handSide));
@@ -442,6 +441,7 @@ namespace UltimateXR.Editor.Manipulation.HandPoses
         private List<UxrPreviewHandBoneInfo> _bones;
         private List<UxrPreviewHandBoneInfo> _bonesClosed;
         private BoneWeight[]                 _boneWeights;
+        private Dictionary<int, bool>        _arehandBones;
 
         #endregion
     }

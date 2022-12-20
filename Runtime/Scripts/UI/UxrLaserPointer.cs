@@ -216,7 +216,7 @@ namespace UltimateXR.UI
 
                     Plane plane = new Plane(Avatar.CameraForward, Avatar.CameraPosition);
                     float dist  = plane.GetDistanceToPoint(_hitQuad.transform.position);
-                    _hitQuad.transform.localScale = Vector3.one * _rayHitSize * Mathf.Max(2.0f, dist);
+                    _hitQuad.transform.localScale = _rayHitSize * Mathf.Max(2.0f, dist) * Vector3.one;
                 }
             }
             else
@@ -237,7 +237,7 @@ namespace UltimateXR.UI
 
                         Plane plane = new Plane(Avatar.CameraForward, Avatar.CameraPosition);
                         float dist  = plane.GetDistanceToPoint(_hitQuad.transform.position);
-                        _hitQuad.transform.localScale = Vector3.one * _rayHitSize * Mathf.Max(2.0f, dist);
+                        _hitQuad.transform.localScale = _rayHitSize * Mathf.Max(2.0f, dist) * Vector3.one;
                     }
                 }
                 else

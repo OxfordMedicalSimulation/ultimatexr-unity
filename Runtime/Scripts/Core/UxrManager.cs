@@ -78,6 +78,18 @@ namespace UltimateXR.Core
         // Events
 
         /// <summary>
+        ///     Called right before precaching is about to start. It's called on the first frame that is displayed black.
+        ///     See <see cref="UsePrecaching"/>.
+        /// </summary>
+        public static event Action PrecachingStarting;
+
+        /// <summary>
+        ///     Called right after precaching finished. It's called on the first frame that starts to fade-in from black.
+        ///     See <see cref="UsePrecaching"/>.
+        /// </summary>
+        public static event Action PrecachingFinished;
+
+        /// <summary>
         ///     Called right before processing all update stages in the current frame. Equivalent to <see cref="StageUpdating" />
         ///     for <see cref="UxrUpdateStage.Update" />
         /// </summary>
@@ -111,7 +123,7 @@ namespace UltimateXR.Core
 
         /// <summary>
         ///     Gets whether the manager is currently pre-caching. This happens right after the local avatar is enabled and
-        ///     <see cref="_usePrecaching" /> is set.
+        ///     <see cref="UsePrecaching" /> is set.
         /// </summary>
         public bool IsPrecaching => _precacheCoroutine != null;
 
@@ -232,8 +244,7 @@ namespace UltimateXR.Core
                 OnAvatarMoving(new UxrAvatarMoveEventArgs(avatar, oldPosition, oldRotation, newPosition, newRotation));
             }
 
-            avatarTransform.position = newPosition;
-            avatarTransform.rotation = newRotation;
+            avatarTransform.SetPositionAndRotation(newPosition, newRotation);
 
             if (propagateEvents)
             {
@@ -1002,8 +1013,10 @@ namespace UltimateXR.Core
         ///     The scene is rendered black on top during a pre-determined number of frames (<see cref="PrecacheFrameCount" />)
         ///     after which the pre-instantiated objects will be destroyed and the scene will be faded in.
         /// </summary>
+        /// <param name="onStarting">Optional callback called when precaching is right about to start</param>
+        /// <param name="onFinished">Optional callback called right after precaching finished</param>
         /// <returns>Coroutine enumerator</returns>
-        private IEnumerator PrecacheCoroutine()
+        private IEnumerator PrecacheCoroutine(Action onStarting = null, Action onFinished = null)
         {
             UxrAvatar avatar = UxrAvatar.LocalAvatar;
 
@@ -1013,6 +1026,8 @@ namespace UltimateXR.Core
 
                 avatar = UxrAvatar.LocalAvatar;
             }
+            
+            onStarting?.Invoke();
 
             DestroyPrecachedInstances();
 
@@ -1033,6 +1048,8 @@ namespace UltimateXR.Core
             }
 
             DestroyPrecachedInstances();
+
+            onFinished?.Invoke();
 
             float startFadeTime = Time.time;
             float fadeDuration  = 0.5f;
@@ -1100,6 +1117,22 @@ namespace UltimateXR.Core
         #endregion
 
         #region Event Trigger Methods
+
+        /// <summary>
+        ///     <see cref="PrecachingStarting"/> event trigger.
+        /// </summary>
+        private void OnPrecachingStarting()
+        {
+            PrecachingStarting?.Invoke();
+        }
+
+        /// <summary>
+        ///     <see cref="PrecachingFinished"/> event trigger.
+        /// </summary>
+        private void OnPrecachingFinished()
+        {
+            PrecachingFinished?.Invoke();
+        }
 
         /// <summary>
         ///     <see cref="AvatarMoving" /> event trigger.
@@ -1322,9 +1355,9 @@ namespace UltimateXR.Core
                 StopCoroutine(_precacheCoroutine);
             }
 
-            if (_usePrecaching)
+            if (UsePrecaching)
             {
-                _precacheCoroutine = StartCoroutine(PrecacheCoroutine());
+                _precacheCoroutine = StartCoroutine(PrecacheCoroutine(OnPrecachingStarting, OnPrecachingFinished));
             }
         }
 
@@ -1340,9 +1373,7 @@ namespace UltimateXR.Core
                 {
                     if (canvas.renderMode == RenderMode.WorldSpace && canvas.GetComponent<UxrIgnoreCanvas>() == null)
                     {
-                        UxrCanvas canvasXR = canvas.GetComponent<UxrCanvas>();
-
-                        if (canvasXR == null)
+                        if (!canvas.TryGetComponent<UxrCanvas>(out var canvasXR))
                         {
                             if (UxrPointerInputModule.Instance.AutoEnableOnWorldCanvases)
                             {

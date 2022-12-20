@@ -397,7 +397,7 @@ namespace UltimateXR.Editor.Manipulation.HandPoses
                         DeletePose(_avatar, _currentPoseNames[_poseIndex], true);
                         LoadDefaultPoseData();
 
-                        if (_currentHandPose == null && _currentPoseNames.Any())
+                        if (_currentHandPose == null && _currentPoseNames.Count > 0)
                         {
                             _poseIndex       = 0;
                             _currentHandPose = _avatar.GetHandPose(_currentPoseNames[_poseIndex]);
@@ -648,7 +648,7 @@ namespace UltimateXR.Editor.Manipulation.HandPoses
 
                                 if (_currentHandPose != handPose)
                                 {
-                                    if (!_currentPoseNames.Any())
+                                    if (_currentPoseNames.Count == 0)
                                     {
                                         // No poses available: reset hands
 
@@ -1451,7 +1451,7 @@ namespace UltimateXR.Editor.Manipulation.HandPoses
         {
             if (avatar != null)
             {
-                if (_avatar != avatar || _fingerSpinners == null || !_fingerSpinners.Any() || handPose == null)
+                if (_avatar != avatar || _fingerSpinners == null || _fingerSpinners.Count == 0 || handPose == null)
                 {
                     _avatar = avatar;
 
@@ -1620,7 +1620,7 @@ namespace UltimateXR.Editor.Manipulation.HandPoses
             {
                 SerializedObject serializedObject = new SerializedObject(avatar.GetAvatarPrefab());
                 serializedObject.Update();
-                SerializedProperty defaultHandPose = serializedObject.FindProperty(UxrAvatarEditor.VarNameDefaultHandPose);
+                SerializedProperty defaultHandPose = serializedObject.FindProperty(UxrAvatarEditor.PropertyDefaultHandPose);
                 defaultHandPose.objectReferenceValue = avatar.GetHandPose(poseName);
                 serializedObject.ApplyModifiedProperties();
                 EditorUtility.SetDirty(avatar.GetAvatarPrefab());
@@ -1888,7 +1888,7 @@ namespace UltimateXR.Editor.Manipulation.HandPoses
             if (handPoseAsset != null)
             {
                 SerializedObject   serializedObject  = new SerializedObject(avatar.GetAvatarPrefab());
-                SerializedProperty propertyHandPoses = serializedObject.FindProperty(UxrAvatarEditor.VarNameHandPoses);
+                SerializedProperty propertyHandPoses = serializedObject.FindProperty(UxrAvatarEditor.PropertyHandPoses);
 
                 for (int i = 0; i < propertyHandPoses.arraySize; ++i)
                 {
@@ -1977,7 +1977,7 @@ namespace UltimateXR.Editor.Manipulation.HandPoses
 
                 SerializedObject serializedObject = new SerializedObject(avatar.GetAvatarPrefab());
                 serializedObject.Update();
-                SerializedProperty handPoses = serializedObject.FindProperty(UxrAvatarEditor.VarNameHandPoses);
+                SerializedProperty handPoses = serializedObject.FindProperty(UxrAvatarEditor.PropertyHandPoses);
                 handPoses.InsertArrayElementAtIndex(0);
                 handPoses.GetArrayElementAtIndex(0).objectReferenceValue = handPose;
                 serializedObject.ApplyModifiedProperties();
@@ -2681,8 +2681,7 @@ namespace UltimateXR.Editor.Manipulation.HandPoses
                         {
                             GameObject                      snapObject              = new GameObject(poseName + (handSide == UxrHandSide.Left ? "Left" : "Right"));
                             UxrGrabbableObjectSnapTransform alignTransformComponent = snapObject.AddComponent<UxrGrabbableObjectSnapTransform>();
-                            snapObject.transform.position = grabbers[i].transform.position;
-                            snapObject.transform.rotation = grabbers[i].transform.rotation;
+                            snapObject.transform.SetPositionAndRotation(grabbers[i].transform.position, grabbers[i].transform.rotation);
                             snapObject.transform.SetParent(grabbableObjectSelected.transform, true);
 
                             Undo.RegisterCreatedObjectUndo(snapObject, "Create " + snapObject.name);

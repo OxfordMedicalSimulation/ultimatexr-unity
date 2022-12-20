@@ -303,10 +303,7 @@ namespace UltimateXR.Locomotion
 
             UxrTeleportLocomotionBase[] allAvatarTeleports = Avatar.GetComponentsInChildren<UxrTeleportLocomotionBase>();
 
-            foreach (UxrTeleportLocomotionBase teleport in allAvatarTeleports.Where(teleport => teleport != this))
-            {
-                _otherAvatarTeleports.Add(teleport);
-            }
+            _otherAvatarTeleports.AddRange(allAvatarTeleports.Where(teleport => teleport != this));
 
             // If the teleport target is a prefab, instantiate. Otherwise just reference the object in the scene
 
@@ -728,6 +725,8 @@ namespace UltimateXR.Locomotion
                     parentToDestination = parentAvatarDestination.ParentAvatar;
                 }
 
+                UxrTeleportSpawnCollider spawnCollider = _lastSpawnCollider;
+
                 UxrManager.Instance.TeleportLocalAvatarRelative(TeleportReference,
                                                                 parentToDestination,
                                                                 TransformExt.GetWorldPosition(TeleportReference, TeleportLocalPosition),
@@ -736,9 +735,9 @@ namespace UltimateXR.Locomotion
                                                                 TranslationSeconds,
                                                                 () =>
                                                                 {
-                                                                    if (_lastSpawnCollider != null)
+                                                                    if (spawnCollider != null)
                                                                     {
-                                                                        _lastSpawnCollider.RaiseTeleported(new UxrAvatarMoveEventArgs(Avatar, avatarPos, avatarRot, Avatar.CameraFloorPosition, Quaternion.LookRotation(Avatar.ProjectedCameraForward, avatarUp)));
+                                                                        spawnCollider.RaiseTeleported(new UxrAvatarMoveEventArgs(Avatar, avatarPos, avatarRot, Avatar.CameraFloorPosition, Quaternion.LookRotation(Avatar.ProjectedCameraForward, avatarUp)));
                                                                     }
                                                                 },
                                                                 finished =>
@@ -790,12 +789,7 @@ namespace UltimateXR.Locomotion
                     // Raycast upwards to see if there is something between the ground and eye level. Since we can be teleported inside a box
                     // at eye level for instance, the previous raycast will not handle that case. We need to raycast from outside as well
 
-                    if (Physics.Raycast(teleportPos, Vector3.up, out hit, eyeHeight, LayerMaskRaycast, TriggerCollidersInteraction))
-                    {
-                        return false;
-                    }
-
-                    return true;
+                    return !Physics.Raycast(teleportPos, Vector3.up, eyeHeight, LayerMaskRaycast, TriggerCollidersInteraction);
                 }
             }
 
@@ -868,10 +862,7 @@ namespace UltimateXR.Locomotion
             {
                 IsTeleporting = true;
 
-                Transform  avatarTransform = Avatar.transform;
-                Vector3    avatarPos       = avatarTransform.position;
-                Vector3    avatarUp        = avatarTransform.up;
-                Quaternion avatarRot       = avatarTransform.rotation;
+                Transform avatarTransform = Avatar.transform;
 
                 if (RotationType == UxrRotationType.Fade)
                 {
@@ -881,13 +872,7 @@ namespace UltimateXR.Locomotion
                 UxrManager.Instance.RotateLocalAvatar(degrees,
                                                       RotationType,
                                                       RotationSeconds,
-                                                      () =>
-                                                      {
-                                                          if (_lastSpawnCollider != null)
-                                                          {
-                                                              _lastSpawnCollider.RaiseTeleported(new UxrAvatarMoveEventArgs(Avatar, avatarPos, avatarRot, Avatar.CameraFloorPosition, Quaternion.LookRotation(Avatar.ProjectedCameraForward, avatarUp)));
-                                                          }
-                                                      },
+                                                      null,
                                                       finished =>
                                                       {
                                                           IsTeleporting     = false;

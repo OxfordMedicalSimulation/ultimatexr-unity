@@ -3,7 +3,6 @@
 //   Copyright (c) VRMADA, All rights reserved.
 // </copyright>
 // --------------------------------------------------------------------------------------------------------------------
-using UltimateXR.Avatar;
 using UltimateXR.Core;
 using UltimateXR.Core.Math;
 using UltimateXR.Extensions.Unity;
@@ -285,11 +284,9 @@ namespace UltimateXR.Animation.IK
                 }
             }
 
-            Forearm.position = elbowPosition;
-            Forearm.rotation = forearmRotationTarget * _forearmUniversalLocalAxes.UniversalToActualAxesRotation;
+            Forearm.SetPositionAndRotation(elbowPosition, forearmRotationTarget * _forearmUniversalLocalAxes.UniversalToActualAxesRotation);
 
-            Hand.position = finalHandPosition;
-            Hand.rotation = finalHandRotation;
+            Hand.SetPositionAndRotation(finalHandPosition, finalHandRotation);
         }
 
         #endregion

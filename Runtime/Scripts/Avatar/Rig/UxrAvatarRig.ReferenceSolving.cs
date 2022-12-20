@@ -1269,7 +1269,7 @@ namespace UltimateXR.Avatar.Rig
         /// <returns>Whether the bone was found in the skin</returns>
         private static bool IsBoneInList(SkinnedMeshRenderer skin, Transform transformToCheck)
         {
-            if (transformToCheck.name.Contains("ignore", System.StringComparison.OrdinalIgnoreCase))
+            if (transformToCheck.name.IndexOf("ignore", System.StringComparison.OrdinalIgnoreCase) >= 0)
             {
                 return false;
             }

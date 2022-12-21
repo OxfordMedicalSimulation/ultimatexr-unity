@@ -824,6 +824,9 @@ namespace UltimateXR.UI.UnityInputModule
 
             bool laserPointerValid = laserPointer.gameObject.activeInHierarchy && laserPointer.enabled;
             data.PressedThisFrame = laserPointerValid && laserPointer.IsClickedThisFrame();
+            // OMS - Need to update this in case we are using the CameraPointer as hand side switches dependant on
+            // which controller button was last pressed, laser pointers won't be effected
+            data.HandSide = laserPointer.HandSide; 
 
             if (data.pointerPress != null && !laserPointerValid)
             {

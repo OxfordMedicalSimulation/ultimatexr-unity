@@ -26,7 +26,7 @@ namespace UltimateXR.UI.UnityInputModule
         /// <summary>
         ///     Gets the hand responsible for the interaction.
         /// </summary>
-        public UxrHandSide HandSide { get; }
+        public UxrHandSide HandSide { get; internal set; }
 
         /// <summary>
         ///     Gets the current pointer world position.

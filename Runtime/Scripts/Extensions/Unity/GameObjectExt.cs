@@ -10,9 +10,9 @@ using UltimateXR.Extensions.System;
 using UltimateXR.Extensions.Unity.Math;
 using UltimateXR.Manipulation;
 using UltimateXR.UI.UnityInputModule;
-using UnityEditor.Experimental.SceneManagement;
 using UnityEngine;
 #if UNITY_EDITOR
+using UnityEditor.Experimental.SceneManagement;
 using UnityEditor.SceneManagement;
 #endif
 

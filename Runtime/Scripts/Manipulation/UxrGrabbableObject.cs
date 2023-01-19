@@ -485,7 +485,9 @@ namespace UltimateXR.Manipulation
             set
             {
                 _rigidBodySource = value;
-                _initialIsKinematic = _rigidBodySource.isKinematic;
+                if (_rigidBodySource)
+                    _initialIsKinematic = _rigidBodySource.isKinematic;
+                _rigidBodyDynamicOnRelease = !_initialIsKinematic;
             }
         }
 
@@ -2163,10 +2165,23 @@ namespace UltimateXR.Manipulation
 
                 if (_rotationConstraintMode == UxrRotationConstraintMode.RestrictLocalRotation)
                 {
-                    targetLocalRotation = ClampRotation(transform.localRotation, unprocessedLocalRotation, InitialLocalRotation, _rotationAngleLimitsMin, _rotationAngleLimitsMax, false, ref _singleRotationAngleCumulative);
+                    targetLocalRotation = ClampRotation(transform.localRotation, unprocessedLocalRotation,
+                        InitialLocalRotation, _rotationAngleLimitsMin, _rotationAngleLimitsMax, false,
+                        ref _singleRotationAngleCumulative);
                 }
 
-                transform.localRotation = _constraintTimer < 0.0f ? targetLocalRotation : Quaternion.Slerp(unprocessedLocalRotation, targetLocalRotation, 1.0f - _constraintTimer / ConstrainSeconds);
+                if (_rotationConstraintMode == UxrRotationConstraintMode.Locked && !_useParenting && CurrentAnchor)
+                {
+                    Quaternion targetGlobalRotation = CurrentAnchor.transform.rotation;
+                    transform.rotation = targetGlobalRotation;
+                }
+                else
+                {
+                    transform.localRotation = _constraintTimer < 0.0f
+                        ? targetLocalRotation
+                        : Quaternion.Slerp(unprocessedLocalRotation, targetLocalRotation,
+                            1.0f - _constraintTimer / ConstrainSeconds);
+                }
             }
 
             // Translation

@@ -198,8 +198,9 @@ namespace UltimateXR.Manipulation
             {
                 throw new ArgumentNullException(nameof(tags));
             }
-
+            
             _compatibleTags.AddRange(tags);
+            _compatibleTags = _compatibleTags.Distinct().ToList();
         }
 
         /// <summary>

@@ -15,7 +15,7 @@ namespace UltimateXR.Avatar
         {
             if (action != null)
             {
-                Debug.LogError($"XXXXXX Animation event registered {poseName} - {HandSide.ToString()}");
+                //Debug.LogError($"XXXXXX Animation event registered {poseName} - {HandSide.ToString()}");
                 _animationCompleteCallbacks.Add(poseName, action);
             }
         }
@@ -23,9 +23,10 @@ namespace UltimateXR.Avatar
         // Triggered by animation event
         public void OnAnimationCompleted(string poseName)
         {
+            //Debug.LogError($"XXXXXX Animation completed {poseName} - {HandSide.ToString()}");
             if (_animationCompleteCallbacks.TryGetValue(poseName, out var callback) && callback != null)
             {
-                Debug.LogError($"XXXXXX Animation completed {poseName} - {HandSide.ToString()}");
+                //Debug.LogError($"XXXXXX Animation completed callback {poseName} - {HandSide.ToString()}");
                 _animationCompleteCallbacks.Remove(poseName);
                 callback.Invoke();
             }

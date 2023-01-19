@@ -12,6 +12,7 @@ namespace UltimateXR.Avatar
             public UnityEngine.Animation Animation => _animation;
             public UxrAnimatedAvatarEventHandler EventHandler => _eventHandler;
             public string CurrentAnimName { get; set; } = String.Empty;
+            public int CurrentAnimPriority { get; set; } = 0;
 
             private UnityEngine.Animation _animation; 
             private UxrAnimatedAvatarEventHandler _eventHandler;

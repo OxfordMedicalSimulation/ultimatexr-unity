@@ -4,6 +4,7 @@ using System.Linq;
 using UltimateXR.Core;
 using UltimateXR.Extensions.Unity;
 using UnityEngine;
+using WebSocketSharp;
 
 namespace UltimateXR.Avatar
 {
@@ -36,26 +37,39 @@ namespace UltimateXR.Avatar
             return SetCurrentHandAnimation(handSide, poseName);
         }
 
-        public bool SetCurrentHandAnimation(UxrHandSide handSide, string poseName, Action onComplete = null)
+        public bool SetCurrentHandAnimation(UxrHandSide handSide, string poseName, int priority = 0, Action onComplete = null)
         {
             var handState = handSide == UxrHandSide.Left ? _leftHandState : _rightHandState;
 
-            if (handState.CurrentAnimName.Equals(poseName))
+            if (handState.CurrentAnimName.Equals(poseName) || handState.CurrentAnimPriority > priority) 
                 return true;
-            
+
             if (TryEnsureClipExistsForHand(handState, poseName))
             {
-                if (handState.EventHandler && onComplete != null)
+                if (handState.EventHandler)
                 {
                     handState.EventHandler.OnAnimationCompleted(handState.CurrentAnimName);
                     handState.EventHandler.RegisterOnComplete(poseName, onComplete);
                 }
                 handState.Animation.CrossFade(poseName, 0.1f);
                 handState.CurrentAnimName = poseName;
+                handState.CurrentAnimPriority = priority;
+                //Debug.LogError($"XXXXXX Animation started {handState.CurrentAnimName} - {handSide.ToString()}");
                 return true;
             }
 
             return false;
+        }
+
+        public void StopHandAnimation(UxrHandSide handSide, string key)
+        {
+            var handState = handSide == UxrHandSide.Left ? _leftHandState : _rightHandState;
+            if (key.IsNullOrEmpty() || handState.CurrentAnimName.Equals(key))
+            {
+                handState.CurrentAnimPriority = 0;
+                Debug.LogError($"XXXXXX Animation stopped {handState.CurrentAnimName} - {handSide.ToString()}");
+                SetCurrentHandAnimation(handSide, DefaultHandPoseName);
+            }
         }
 
         private bool TryEnsureClipExistsForHand(HandState hand, string animName)

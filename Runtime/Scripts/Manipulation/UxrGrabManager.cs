@@ -1930,22 +1930,26 @@ namespace UltimateXR.Manipulation
 
                 for (int point = 0; point < grabbable.GrabPointCount; ++point)
                 {
+                    bool enableObject = false;
+
+                    if (possibleGrabs != null && possibleGrabs.TryGetValue(grabbable, out List<int> grabPoints))
+                    {
+                        enableObject = grabPoints.Contains(point);
+                    }
+                    
+                    UxrManipulationEventArgs hoverEventArgs = new UxrManipulationEventArgs(grabbable, null, null, point);
+
+                    if (enableObject)
+                        grabbable.RaiseHoverStartEvent(hoverEventArgs);
+                    else
+                        grabbable.RaiseHoverStopEvent(hoverEventArgs);
+                    
                     GameObject enableOnHandNear = grabbable.GetGrabPoint(point).EnableOnHandNear;
 
-                    if (enableOnHandNear)
+                    if (enableObject && enableOnHandNear && !enableOnHandNear.activeSelf)
                     {
-                        bool enableObject = false;
-
-                        if (possibleGrabs != null && possibleGrabs.TryGetValue(grabbable, out List<int> grabPoints))
-                        {
-                            enableObject = grabPoints.Contains(point);
-                        }
-
-                        if (enableObject && !enableOnHandNear.activeSelf)
-                        {
-                            enableOnHandNear.SetActive(true);
-                            break;
-                        }
+                        enableOnHandNear.SetActive(true);
+                        break;
                     }
                 }
             }

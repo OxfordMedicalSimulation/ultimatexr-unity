@@ -677,6 +677,12 @@ namespace UltimateXR.Manipulation
         }
 
         /// <inheritdoc />
+        public event EventHandler<UxrManipulationEventArgs> HoverStart;
+        
+        /// <inheritdoc />
+        public event EventHandler<UxrManipulationEventArgs> HoverStop;
+        
+        /// <inheritdoc />
         public event EventHandler<UxrManipulationEventArgs> Grabbing;
 
         /// <inheritdoc />
@@ -2025,6 +2031,24 @@ namespace UltimateXR.Manipulation
             ConstraintsFinished?.Invoke(this, e);
         }
 
+        /// <summary>
+        ///     Event trigger for <see cref="HoverStart" />.
+        /// </summary>
+        /// <param name="e">Event parameters</param>
+        internal void RaiseHoverStartEvent(UxrManipulationEventArgs e)
+        {
+            HoverStart?.Invoke(this, e);
+        }
+        
+        /// <summary>
+        ///     Event trigger for <see cref="HoverStop" />.
+        /// </summary>
+        /// <param name="e">Event parameters</param>
+        internal void RaiseHoverStopEvent(UxrManipulationEventArgs e)
+        {
+            HoverStop?.Invoke(this, e);
+        }
+        
         /// <summary>
         ///     Event trigger for <see cref="Grabbing" />.
         /// </summary>

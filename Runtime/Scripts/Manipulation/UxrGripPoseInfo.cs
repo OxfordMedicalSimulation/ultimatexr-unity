@@ -21,6 +21,7 @@ namespace UltimateXR.Manipulation
 
         [SerializeField] private string           _avatarPrefabGuid;
         [SerializeField] private UxrHandPoseAsset _handPose;
+        [SerializeField] private string           _handPoseName;
         [SerializeField] private float            _poseBlendValue;
         [SerializeField] private Transform        _gripAlignTransformHandLeft;
         [SerializeField] private Transform        _gripAlignTransformHandRight;
@@ -51,6 +52,12 @@ namespace UltimateXR.Manipulation
         {
             get => _handPose;
             set => _handPose = value;
+        }
+
+        public string HandPoseName
+        {
+            get => _handPoseName;
+            set => _handPoseName = value;
         }
 
         /// <summary>

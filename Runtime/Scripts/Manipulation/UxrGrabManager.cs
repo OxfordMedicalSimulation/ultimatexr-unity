@@ -730,8 +730,10 @@ namespace UltimateXR.Manipulation
                 {
                     if (grabInfo.Grabbers[point] == grabber)
                     {
-                        UxrHandPoseAsset handPoseAsset = grabbableObject.GetGrabPoint(grabInfo.GrabbedPoints[point]).GetGripPoseInfo(grabber.Avatar).HandPose;
-                        return handPoseAsset != null ? handPoseAsset.name : null;
+                        UxrGripPoseInfo gripPoseInfo = grabbableObject.GetGrabPoint(grabInfo.GrabbedPoints[point])
+                            .GetGripPoseInfo(grabber.Avatar);
+                        UxrHandPoseAsset handPoseAsset = gripPoseInfo.HandPose;
+                        return handPoseAsset != null ? handPoseAsset.name : gripPoseInfo.HandPoseName;
                     }
                 }
             }

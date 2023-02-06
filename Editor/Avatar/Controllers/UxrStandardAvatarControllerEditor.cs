@@ -276,7 +276,7 @@ namespace UltimateXR.Editor.Avatar.Controllers
             
             nLineIndex++;
             
-            EditorGUI.PropertyField(GetCurrentRect(), element.FindPropertyRelative("_animationClip"), new GUIContent("Animation clip"));
+            EditorGUI.PropertyField(GetCurrentRect(), element.FindPropertyRelative("_animationPose"), new GUIContent("Animation Pose"));
         }
 
         #endregion

@@ -23,7 +23,7 @@ namespace UltimateXR.Avatar
                 if (_animation)
                 {
                     _eventHandler = _animation.GetOrAddComponent<UxrAnimatedAvatarEventHandler>();
-                    _eventHandler.HandSide = UxrHandSide.Left;
+                    _eventHandler.HandSide = handSide;
                 }
             }
         }

@@ -314,6 +314,21 @@ namespace UltimateXR.Avatar.Controllers
             UxrIKSolver.GetComponents(Avatar).Where(s => s.GetType() != typeof(UxrArmIKSolver) && s.NeedsAutoUpdate).ForEach(s => s.SolveIK());
         }
 
+        public void SetGripPose(string poseName)
+        {
+            _leftHandInfo.InitialHandGrabPoseName = poseName;
+            _rightHandInfo.InitialHandGrabPoseName = poseName;
+
+            foreach (UxrAvatarControllerEvent controllerEvent in _listControllerEvents)
+            {
+                if (controllerEvent.TypeOfAnimation == UxrAnimationType.LeftHandGrab
+                    || controllerEvent.TypeOfAnimation == UxrAnimationType.RightHandGrab)
+                {
+                    controllerEvent.AnimationPose = poseName;
+                }
+            }
+        }
+        
         #endregion
 
         #region Unity

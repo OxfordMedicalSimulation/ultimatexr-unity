@@ -7,6 +7,7 @@ using System;
 using UltimateXR.Devices;
 using UltimateXR.Manipulation.HandPoses;
 using UnityEngine;
+using WebSocketSharp;
 
 namespace UltimateXR.Avatar.Controllers
 {
@@ -23,7 +24,7 @@ namespace UltimateXR.Avatar.Controllers
         [SerializeField]                     private UxrInputButtons  _buttons;
         [SerializeField]                     private UxrAnimationType _animationType;
         [SerializeField]                     private UxrHandPoseAsset _handPose;
-        [SerializeField]                     private AnimationClip    _animationClip;
+        [SerializeField]                     private string           _animationPose;
         [SerializeField] [Range(0.0f, 1.0f)] private float            _poseBlendValue;
 
         #endregion
@@ -34,7 +35,7 @@ namespace UltimateXR.Avatar.Controllers
         ///     Gets the hand pose name that should be used on the event.
         /// </summary>
         public string PoseName => !string.IsNullOrEmpty(_poseNameOverride) ? _poseNameOverride :
-            _animationClip != null ? _animationClip.name : 
+            !_animationPose.IsNullOrEmpty() ? _animationPose : 
                 _handPose != null ? _handPose.name : null;
 
         /// <summary>
@@ -72,6 +73,12 @@ namespace UltimateXR.Avatar.Controllers
         {
             get => _poseBlendValue;
             set => _poseBlendValue = value;
+        }
+
+        public string AnimationPose
+        {
+            get => _animationPose;
+            set => _animationPose = value;
         }
 
         #endregion

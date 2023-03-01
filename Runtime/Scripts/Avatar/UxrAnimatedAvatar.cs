@@ -4,7 +4,6 @@ using System.Linq;
 using UltimateXR.Core;
 using UltimateXR.Extensions.Unity;
 using UnityEngine;
-using WebSocketSharp;
 
 namespace UltimateXR.Avatar
 {
@@ -64,7 +63,7 @@ namespace UltimateXR.Avatar
         public void StopHandAnimation(UxrHandSide handSide, string key)
         {
             var handState = handSide == UxrHandSide.Left ? _leftHandState : _rightHandState;
-            if (key.IsNullOrEmpty() || handState.CurrentAnimName.Equals(key))
+            if (string.IsNullOrEmpty(key) || handState.CurrentAnimName.Equals(key))
             {
                 handState.CurrentAnimPriority = 0;
                 Debug.LogError($"XXXXXX Animation stopped {handState.CurrentAnimName} - {handSide.ToString()}");

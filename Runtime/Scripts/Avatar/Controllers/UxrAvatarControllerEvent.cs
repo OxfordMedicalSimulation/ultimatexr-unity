@@ -7,7 +7,6 @@ using System;
 using UltimateXR.Devices;
 using UltimateXR.Manipulation.HandPoses;
 using UnityEngine;
-using WebSocketSharp;
 
 namespace UltimateXR.Avatar.Controllers
 {
@@ -35,7 +34,7 @@ namespace UltimateXR.Avatar.Controllers
         ///     Gets the hand pose name that should be used on the event.
         /// </summary>
         public string PoseName => !string.IsNullOrEmpty(_poseNameOverride) ? _poseNameOverride :
-            !_animationPose.IsNullOrEmpty() ? _animationPose : 
+            !string.IsNullOrEmpty(_animationPose) ? _animationPose : 
                 _handPose != null ? _handPose.name : null;
 
         /// <summary>

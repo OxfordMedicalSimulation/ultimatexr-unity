@@ -15,7 +15,6 @@ using UltimateXR.Manipulation;
 using UltimateXR.Manipulation.HandPoses;
 using UltimateXR.UI;
 using UnityEngine;
-using WebSocketSharp;
 
 namespace UltimateXR.Avatar.Controllers
 {
@@ -832,7 +831,7 @@ namespace UltimateXR.Avatar.Controllers
                     string             overrideGrabPoseName = UxrGrabManager.Instance.GetOverrideGrabPoseName(grabber, grabber.GrabbedObject);
                     UxrRuntimeHandPose overrideGrabPose     = !string.IsNullOrEmpty(overrideGrabPoseName) ? Avatar.GetRuntimeHandPose(overrideGrabPoseName) : null;
 
-                    if (overrideGrabPose != null || (!overrideGrabPoseName.IsNullOrEmpty() && Avatar is UxrAnimatedAvatar))
+                    if (overrideGrabPose != null || (!string.IsNullOrEmpty(overrideGrabPoseName) && Avatar is UxrAnimatedAvatar))
                     {
                         if (grabber.Side == UxrHandSide.Left)
                         {

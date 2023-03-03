@@ -33,10 +33,10 @@ namespace UltimateXR.Avatar
 
         public override bool SetCurrentHandPose(UxrHandSide handSide, string poseName, float blendValue = 0.0f, bool propagateEvents = true)
         {
-            return SetCurrentHandAnimation(handSide, poseName);
+            return SetCurrentHandAnimation(handSide, poseName, propagateEvents);
         }
 
-        public bool SetCurrentHandAnimation(UxrHandSide handSide, string poseName, int priority = 0, Action onComplete = null)
+        public bool SetCurrentHandAnimation(UxrHandSide handSide, string poseName, bool propagateEvents = true, int priority = 0, Action onComplete = null)
         {
             var handState = handSide == UxrHandSide.Left ? _leftHandState : _rightHandState;
 
@@ -45,6 +45,13 @@ namespace UltimateXR.Avatar
 
             if (TryEnsureClipExistsForHand(handState, poseName))
             {
+                UxrAvatarHandPoseChangeEventArgs avatarHandPoseChangeArgs = new UxrAvatarHandPoseChangeEventArgs(this, handSide, poseName);
+                
+                if (propagateEvents)
+                {
+                    OnHandPoseChanging(avatarHandPoseChangeArgs);
+                }
+                
                 if (handState.EventHandler)
                 {
                     handState.EventHandler.OnAnimationCompleted(handState.CurrentAnimName);
@@ -54,6 +61,12 @@ namespace UltimateXR.Avatar
                 handState.CurrentAnimName = poseName;
                 handState.CurrentAnimPriority = priority;
                 //Debug.LogError($"XXXXXX Animation started {handState.CurrentAnimName} - {handSide.ToString()}");
+
+                if (propagateEvents)
+                {
+                    OnHandPoseChanged(avatarHandPoseChangeArgs);
+                }
+                
                 return true;
             }
 

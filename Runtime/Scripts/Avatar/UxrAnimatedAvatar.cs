@@ -79,7 +79,7 @@ namespace UltimateXR.Avatar
             if (string.IsNullOrEmpty(key) || handState.CurrentAnimName.Equals(key))
             {
                 handState.CurrentAnimPriority = 0;
-                Debug.LogError($"XXXXXX Animation stopped {handState.CurrentAnimName} - {handSide.ToString()}");
+                //Debug.LogError($"XXXXXX Animation stopped {handState.CurrentAnimName} - {handSide.ToString()}");
                 SetCurrentHandAnimation(handSide, DefaultHandPoseName);
             }
         }

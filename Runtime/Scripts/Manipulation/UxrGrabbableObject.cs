@@ -2219,9 +2219,6 @@ namespace UltimateXR.Manipulation
                 {
                     Vector3 newPos = transform.position.ClampToBox(_restrictToBox);
                     targetLocalPos = transform.GetParentWorldMatrix().inverse.MultiplyPoint(newPos);
-                    Debug.DrawLine(newPos, _restrictToBox.transform.position, Color.cyan);
-                    Debug.DrawLine(newPos, newPos + (Vector3.up * 0.001f), Color.cyan);
-                    Debug.DrawLine(_restrictToBox.transform.position, _restrictToBox.transform.position + (Vector3.up * 0.001f), Color.magenta);
                 }
                 else if (_translationConstraintMode == UxrTranslationConstraintMode.RestrictToSphere && _restrictToSphere != null)
                 {

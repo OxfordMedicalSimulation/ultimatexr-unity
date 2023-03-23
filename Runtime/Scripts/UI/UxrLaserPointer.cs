@@ -22,12 +22,6 @@ namespace UltimateXR.UI
     /// </summary>
     public class UxrLaserPointer : UxrAvatarComponent<UxrLaserPointer>
     {
-        #region OMS Custom
-
-        private Vector3? _laserHitPoint;
-        public Vector3? LaserHitPoint => _laserHitPoint;
-        #endregion
-        
         #region Inspector Properties/Serialized Fields
 
         [SerializeField] protected UxrHandSide        _handSide             = UxrHandSide.Left;
@@ -51,7 +45,9 @@ namespace UltimateXR.UI
         /// <summary>
         ///     Gets whether the laser is currently enabled.
         /// </summary>
-        public virtual bool IsLaserEnabled => _isLaserEnabled && (_isAutoEnabled || (Avatar.ControllerInput.IsControllerEnabled(_handSide) && Avatar.ControllerInput.GetButtonsEvent(_handSide, _showLaserInput, _showLaserButtonEvent)));
+        public virtual bool IsLaserEnabled => gameObject.activeInHierarchy && enabled && 
+                                              (_isAutoEnabled || 
+                                               (Avatar.ControllerInput.IsControllerEnabled(_handSide) && Avatar.ControllerInput.GetButtonsEvent(_handSide, _showLaserInput, _showLaserButtonEvent)));
 
         /// <summary>
         ///     Gets the <see cref="Transform" /> that is used to compute the direction in which the laser points. The laser will
@@ -93,19 +89,11 @@ namespace UltimateXR.UI
             get => _handSide;
             set => _handSide = value;
         }
-
+        
         #endregion
 
         #region Public Methods
 
-        public void SetLaserActive(bool active)
-        {
-            _isLaserEnabled = active;
-            
-            if (_lineRenderer)
-                _lineRenderer.enabled = IsLaserEnabled;
-        }
-        
         /// <summary>
         ///     Checks whether the user performed a click this frame (released the input button after pressing).
         /// </summary>
@@ -177,7 +165,7 @@ namespace UltimateXR.UI
         /// <summary>
         ///     Updates the laser pointer.
         /// </summary>
-        private void LateUpdate()
+        protected virtual void LateUpdate()
         {
             _isAutoEnabled = UxrPointerInputModule.Instance && UxrPointerInputModule.Instance.CheckRaycastAutoEnable(this);
 
@@ -206,7 +194,6 @@ namespace UltimateXR.UI
             if (laserPointerEventData != null && laserPointerEventData.pointerCurrentRaycast.isValid && IsLaserEnabled)
             {
                 currentRayLength = laserPointerEventData.pointerCurrentRaycast.distance;
-                _laserHitPoint = laserPointerEventData.pointerCurrentRaycast.worldPosition;
 
                 if (Avatar.CameraComponent && _hitQuad)
                 {
@@ -227,7 +214,6 @@ namespace UltimateXR.UI
                 if (IsLaserEnabled && Physics.Raycast(LaserPos, LaserDir, out RaycastHit hitInfo, currentRayLength, -1, QueryTriggerInteraction.Ignore))
                 {
                     currentRayLength = hitInfo.distance;
-                    _laserHitPoint = hitInfo.point;
 
                     if (Avatar.CameraComponent && _hitQuad)
                     {
@@ -246,8 +232,6 @@ namespace UltimateXR.UI
                     {
                         _hitQuad.SetActive(false);
                     }
-
-                    _laserHitPoint = null;
                 }
             }
 
@@ -265,7 +249,7 @@ namespace UltimateXR.UI
         ///     Updates the line renderer mesh.
         /// </summary>
         /// <param name="rayLength">New ray length</param>
-        private void SetLineRendererMesh(float rayLength)
+        protected void SetLineRendererMesh(float rayLength)
         {
             _lineRenderer.startWidth = _rayWidth;
             _lineRenderer.endWidth   = _rayWidth;
@@ -305,12 +289,10 @@ namespace UltimateXR.UI
 
         private const float GradientLength = 0.4f;
 
-        private LineRenderer _lineRenderer;
-        private Renderer     _laserHitRenderer;
-        private bool         _isAutoEnabled;
-        private GameObject   _hitQuad;
-        
-        protected bool         _isLaserEnabled;
+        protected LineRenderer _lineRenderer;
+        protected Renderer     _laserHitRenderer;
+        protected bool         _isAutoEnabled;
+        protected GameObject   _hitQuad;
 
         #endregion
     }

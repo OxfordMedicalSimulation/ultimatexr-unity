@@ -40,7 +40,7 @@ namespace UltimateXR.Avatar
         {
             var handState = handSide == UxrHandSide.Left ? _leftHandState : _rightHandState;
 
-            if (handState.CurrentAnimName.Equals(poseName) || handState.CurrentAnimPriority > priority) 
+            if (LoadAnimationClip == null || handState.CurrentAnimName.Equals(poseName) || handState.CurrentAnimPriority > priority) 
                 return true;
 
             if (TryEnsureClipExistsForHand(handState, poseName))

@@ -1765,7 +1765,7 @@ namespace UltimateXR.Manipulation
 
             ComputeGrabTransforms(grabber, grabPoint);
 
-            grabInfo.GrabAlignParentTransformUsed = grabAlignTransform.parent;
+            grabInfo.GrabAlignParentTransformUsed = grabPointInfo.SnapReference == UxrSnapReference.UseSelfTransform ? grabAlignTransform : grabAlignTransform.parent;
             grabInfo.RelativeGrabAlignPosition    = TransformExt.GetLocalPosition(grabInfo.GrabAlignParentTransformUsed, snapPosition);
             grabInfo.RelativeGrabAlignRotation    = TransformExt.GetLocalRotation(grabInfo.GrabAlignParentTransformUsed, snapRotation);
             grabInfo.RelativeProximityPosition    = transform.InverseTransformPoint(snapMatrix.MultiplyPoint(localProximity));

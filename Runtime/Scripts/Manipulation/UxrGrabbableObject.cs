@@ -396,6 +396,30 @@ namespace UltimateXR.Manipulation
         public UxrGrabbableObjectAnchor StartAnchor => _startAnchor;
 
         /// <summary>
+        ///     Gets the minimum allowed angle in degrees for objects that have a single rotational degree of freedom.
+        /// </summary>
+        public float MinSingleRotationDegrees
+        {
+            get
+            {
+                int singleRotationAxisIndex = SingleRotationAxisIndex;
+                return singleRotationAxisIndex == -1 ? 0.0f : _rotationAngleLimitsMin[singleRotationAxisIndex];
+            }
+        }
+
+        /// <summary>
+        ///     Gets the maximum allowed angle in degrees for objects that have a single rotational degree of freedom.
+        /// </summary>
+        public float MaxSingleRotationDegrees
+        {
+            get
+            {
+                int singleRotationAxisIndex = SingleRotationAxisIndex;
+                return singleRotationAxisIndex == -1 ? 0.0f : _rotationAngleLimitsMax[singleRotationAxisIndex];
+            }
+        }
+
+        /// <summary>
         ///     Gets or sets the rotation angle in degrees for objects that have a single rotational degree of freedom.
         /// </summary>
         public float SingleRotationAxisDegrees
@@ -707,7 +731,7 @@ namespace UltimateXR.Manipulation
 
             if (_startAnchor)
             {
-                UxrGrabManager.Instance.PlaceObject(this, _startAnchor, UxrPlacementType.Immediate, propagateEvents);
+                UxrGrabManager.Instance.PlaceObject(this, _startAnchor, UxrPlacementOptions.None, propagateEvents);
             }
             
             transform.localPosition = InitialLocalPosition;
@@ -762,7 +786,7 @@ namespace UltimateXR.Manipulation
                     _grabPointEnabledStates[grabPoint] = false; // This is redundant
                 }
             }
-            else if (!grabPointEnabled)
+            else if (!grabPointEnabled && !grabPointEnabled)
             {
                 _grabPointEnabledStates.Add(grabPoint, false);
             }
@@ -790,9 +814,10 @@ namespace UltimateXR.Manipulation
         /// <param name="distanceWithoutRotation">Returns the euclidean distance, without factoring in any relative rotation</param>
         public void GetDistanceFromGrabber(UxrGrabber grabber, int grabPoint, out float distance, out float distanceWithoutRotation)
         {
-            UxrGrabPointInfo grabPointInfo = GetGrabPoint(grabPoint);
-
-            distance = Vector3.Distance(grabber.GetProximityTransform(grabPointInfo.GrabberProximityTransformIndex).position, GetGrabPointGrabProximityTransform(grabber, grabPoint).position);
+            UxrGrabPointInfo grabPointInfo             = GetGrabPoint(grabPoint);
+            Transform        grabberProximityTransform = grabber.GetProximityTransform(grabPointInfo.GrabberProximityTransformIndex);
+            
+            distance = Vector3.Distance(grabberProximityTransform.position, GetGrabPointGrabProximityTransform(grabber, grabPoint).position);
 
             // distanceRotationAdd will store the distance added to count for the rotation and favor those grips closer in orientation to the grabber
 
@@ -806,7 +831,8 @@ namespace UltimateXR.Manipulation
             {
                 distance = grabPointShape.GetDistanceFromGrabber(grabber,
                                                                  GetGrabPointGrabAlignTransform(grabber.Avatar, grabPoint, grabber.Side),
-                                                                 GetGrabPointGrabProximityTransform(grabber, grabPoint));
+                                                                 GetGrabPointGrabProximityTransform(grabber, grabPoint),
+                                                                 grabberProximityTransform);
             }
             else
             {
@@ -854,6 +880,7 @@ namespace UltimateXR.Manipulation
                             grabPointShape.GetClosestSnap(grabber,
                                                           GetGrabPointGrabAlignTransform(grabber.Avatar, grabPoint, grabber.Side),
                                                           GetGrabPointGrabProximityTransform(grabber, grabPoint),
+                                                          grabberProximityTransform,
                                                           out Vector3 snapPos,
                                                           out Quaternion snapRot);
 
@@ -971,7 +998,8 @@ namespace UltimateXR.Manipulation
 
             if (grabPointShape != null)
             {
-                grabPointShape.GetClosestSnap(grabber, snapTransform, GetGrabPointGrabProximityTransform(grabber, grabPoint), out grabberPosition, out grabberRotation);
+                Transform grabberProximityTransform = grabber.GetProximityTransform(grabPointInfo.GrabberProximityTransformIndex);
+                grabPointShape.GetClosestSnap(grabber, snapTransform, GetGrabPointGrabProximityTransform(grabber, grabPoint), grabberProximityTransform, out grabberPosition, out grabberRotation);
             }
 
             if (grabPointInfo.AlignToController)
@@ -1326,7 +1354,7 @@ namespace UltimateXR.Manipulation
         internal Vector3 GetGrabbedPointGrabAlignPosition(UxrGrabber grabber, int grabPoint)
         {
             UxrGrabPointInfo grabPointInfo = GetGrabPoint(grabPoint);
-            return transform.TransformPoint(grabPointInfo.RuntimeGrabs[grabber].RelativeGrabAlignPosition);
+            return TransformExt.GetWorldPosition(grabPointInfo.RuntimeGrabs[grabber].GrabAlignParentTransformUsed, grabPointInfo.RuntimeGrabs[grabber].RelativeGrabAlignPosition);
         }
 
         /// <summary>
@@ -1338,7 +1366,7 @@ namespace UltimateXR.Manipulation
         internal Quaternion GetGrabbedPointGrabAlignRotation(UxrGrabber grabber, int grabPoint)
         {
             UxrGrabPointInfo grabPointInfo = GetGrabPoint(grabPoint);
-            return transform.rotation * grabPointInfo.RuntimeGrabs[grabber].RelativeGrabAlignRotation;
+            return TransformExt.GetWorldRotation(grabPointInfo.RuntimeGrabs[grabber].GrabAlignParentTransformUsed, grabPointInfo.RuntimeGrabs[grabber].RelativeGrabAlignRotation);
         }
 
         /// <summary>
@@ -1510,7 +1538,7 @@ namespace UltimateXR.Manipulation
         {
             if (propagateEvents)
             {
-                OnConstraintsApplying(new UxrApplyConstraintsEventArgs(grabber));
+                OnConstraintsApplying(new UxrApplyConstraintsEventArgs(grabber, grabPoint));
             }
 
             if (IsLockedInPlace)
@@ -1520,7 +1548,7 @@ namespace UltimateXR.Manipulation
 
                 if (propagateEvents)
                 {
-                    OnConstraintsApplied(new UxrApplyConstraintsEventArgs(grabber));
+                    OnConstraintsApplied(new UxrApplyConstraintsEventArgs(grabber, grabPoint));
                 }
 
                 return;
@@ -1532,7 +1560,7 @@ namespace UltimateXR.Manipulation
             {
                 if (propagateEvents)
                 {
-                    OnConstraintsApplied(new UxrApplyConstraintsEventArgs(grabber));
+                    OnConstraintsApplied(new UxrApplyConstraintsEventArgs(grabber, grabPoint));
                 }
 
                 return;
@@ -1555,7 +1583,7 @@ namespace UltimateXR.Manipulation
                 //           In this cases we recommend using ManipulationMode.GrabAndMove instead.
 
                 Vector3 grabDirection        = grabber.transform.TransformPoint(gripInfo.GrabberLocalLeverageSource) - transform.position;
-                Vector3 initialGrabDirection = grabber.Avatar.transform.TransformPoint(gripInfo.GrabberLocalAvatarLeverageSourceOnGrab) - transform.position;
+                Vector3 initialGrabDirection = TransformExt.GetWorldPosition(transform.parent, gripInfo.GrabberLocalParentLeverageSourceOnGrab) - transform.position;
 
                 if (rangeOfMotionAxisCount == 1)
                 {
@@ -1629,7 +1657,8 @@ namespace UltimateXR.Manipulation
 
                 if (UsesGrabbableParentDependency == false)
                 {
-                    Quaternion sourceRotation = transform.rotation * gripInfo.RelativeGrabAlignRotation;
+                    Vector3    sourcePosition = TransformExt.GetWorldPosition(grabPointInfo.RuntimeGrabs[grabber].GrabAlignParentTransformUsed, grabPointInfo.RuntimeGrabs[grabber].RelativeGrabAlignPosition);
+                    Quaternion sourceRotation = TransformExt.GetWorldRotation(grabPointInfo.RuntimeGrabs[grabber].GrabAlignParentTransformUsed, grabPointInfo.RuntimeGrabs[grabber].RelativeGrabAlignRotation);
                     Quaternion targetRotation = grabber.transform.rotation;
 
                     if (grabPointInfo.AlignToController)
@@ -1646,12 +1675,14 @@ namespace UltimateXR.Manipulation
                         }
                     }
 
-                    transform.ApplyAlignment(transform.TransformPoint(gripInfo.RelativeGrabAlignPosition), sourceRotation, grabber.transform.position, targetRotation, GetGrabPointSnapModeAffectsRotation(grabPoint, UxrHandSnapDirection.ObjectToHand), false);
+                    transform.ApplyAlignment(sourcePosition, sourceRotation, grabber.transform.position, targetRotation, GetGrabPointSnapModeAffectsRotation(grabPoint, UxrHandSnapDirection.ObjectToHand), false);
 
                     // Constrain rotation before snapping pivot
                     ConstrainTransform(false, true, localPositionBeforeUpdate, localRotationBeforeUpdate);
 
-                    transform.ApplyAlignment(transform.TransformPoint(gripInfo.RelativeGrabAlignPosition), sourceRotation, grabber.transform.position, targetRotation, false, GetGrabPointSnapModeAffectsPosition(grabPoint, UxrHandSnapDirection.ObjectToHand));
+                    sourcePosition = TransformExt.GetWorldPosition(grabPointInfo.RuntimeGrabs[grabber].GrabAlignParentTransformUsed, grabPointInfo.RuntimeGrabs[grabber].RelativeGrabAlignPosition);
+
+                    transform.ApplyAlignment(sourcePosition, sourceRotation, grabber.transform.position, targetRotation, false, GetGrabPointSnapModeAffectsPosition(grabPoint, UxrHandSnapDirection.ObjectToHand));
 
                     if (gripInfo.GrabTimer > 0.0f)
                     {
@@ -1688,12 +1719,12 @@ namespace UltimateXR.Manipulation
 
             if (propagateEvents)
             {
-                OnConstraintsApplied(new UxrApplyConstraintsEventArgs(grabber));
+                OnConstraintsApplied(new UxrApplyConstraintsEventArgs(grabber, grabPoint));
             }
 
             if (propagateEvents)
             {
-                OnConstraintsFinished(new UxrApplyConstraintsEventArgs(grabber));
+                OnConstraintsFinished(new UxrApplyConstraintsEventArgs(grabber, grabPoint));
             }
         }
 
@@ -1725,7 +1756,8 @@ namespace UltimateXR.Manipulation
 
             if (grabPointShape != null)
             {
-                grabPointShape.GetClosestSnap(grabber, grabAlignTransform, GetGrabPointGrabProximityTransform(grabber, grabPoint), out snapPosition, out snapRotation);
+                Transform grabberProximityTransform = grabber.GetProximityTransform(grabPointInfo.GrabberProximityTransformIndex);
+                grabPointShape.GetClosestSnap(grabber, grabAlignTransform, GetGrabPointGrabProximityTransform(grabber, grabPoint), grabberProximityTransform, out snapPosition, out snapRotation);
             }
 
             Matrix4x4 snapMatrix     = Matrix4x4.TRS(snapPosition, snapRotation, grabAlignTransform.lossyScale);
@@ -1733,10 +1765,11 @@ namespace UltimateXR.Manipulation
 
             ComputeGrabTransforms(grabber, grabPoint);
 
-            grabInfo.RelativeGrabAlignRotation  = Quaternion.Inverse(transform.rotation) * snapRotation;
-            grabInfo.RelativeGrabAlignPosition  = transform.InverseTransformPoint(snapPosition);
-            grabInfo.RelativeProximityPosition  = transform.InverseTransformPoint(snapMatrix.MultiplyPoint(localProximity));
-            grabInfo.GrabberLocalLeverageSource = Vector3.zero;
+            grabInfo.GrabAlignParentTransformUsed = grabAlignTransform.parent;
+            grabInfo.RelativeGrabAlignPosition    = TransformExt.GetLocalPosition(grabInfo.GrabAlignParentTransformUsed, snapPosition);
+            grabInfo.RelativeGrabAlignRotation    = TransformExt.GetLocalRotation(grabInfo.GrabAlignParentTransformUsed, snapRotation);
+            grabInfo.RelativeProximityPosition    = transform.InverseTransformPoint(snapMatrix.MultiplyPoint(localProximity));
+            grabInfo.GrabberLocalLeverageSource   = Vector3.zero;
 
             if (_autoRotationProvider)
             {
@@ -1759,13 +1792,12 @@ namespace UltimateXR.Manipulation
                 }
             }
 
+            grabInfo.GrabberLocalParentLeverageSourceOnGrab = TransformExt.GetLocalPosition(transform.parent, grabber.transform.TransformPoint(grabInfo.GrabberLocalLeverageSource));
+
             grabInfo.LocalPositionOnGrab                    = transform.localPosition;
             grabInfo.LocalRotationOnGrab                    = transform.localRotation;
             grabInfo.AlignPositionOnGrab                    = snapPosition;
             grabInfo.AlignRotationOnGrab                    = snapRotation;
-            grabInfo.GrabberLocalAvatarPositionOnGrab       = grabber.Avatar.transform.InverseTransformPoint(grabber.transform.position);
-            grabInfo.GrabberLocalAvatarRotationOnGrab       = Quaternion.Inverse(grabber.Avatar.transform.rotation) * grabber.transform.rotation;
-            grabInfo.GrabberLocalAvatarLeverageSourceOnGrab = grabber.Avatar.transform.InverseTransformPoint(grabber.transform.TransformPoint(grabInfo.GrabberLocalLeverageSource));
             grabInfo.HandBoneLocalAvatarPositionOnGrab      = grabber.Avatar.transform.InverseTransformPoint(grabber.HandBone.position);
             grabInfo.HandBoneLocalAvatarRotationOnGrab      = Quaternion.Inverse(grabber.Avatar.transform.rotation) * grabber.HandBone.rotation;
             grabInfo.GrabTimer                              = ObjectAlignmentSeconds;

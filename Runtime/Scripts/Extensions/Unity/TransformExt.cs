@@ -120,6 +120,22 @@ namespace UltimateXR.Extensions.Unity
         {
             self.SetPositionAndRotation(target.position, target.rotation);
         }
+		
+#if !(UNITY_2021_3_11 || UNITY_2022_2 || UNITY_2023_1)
+		
+		/// <summary>
+        ///     Sets the local position and local rotation in one go.
+        /// </summary>
+        /// <param name="self">Transform to change</param>
+        /// <param name="localPosition">New local position</param>
+		/// <param name="localRotation">New local rotation</param>
+        public static void SetLocalPositionAndRotation(this Transform self, Vector3 localPosition, Quaternion localRotation)
+        {
+            self.localPosition = localPosition;
+			self.localRotation = localRotation;
+        }
+		
+#endif
 
         /// <summary>
         ///     Sets the localPosition.x value of a given <see cref="Transform" />.
@@ -856,7 +872,7 @@ namespace UltimateXR.Extensions.Unity
         /// <returns>Rotation in local space or <paramref name="rotation" /> if <paramref name="transform" /> is null</returns>
         public static Quaternion GetLocalRotation(Transform transform, Quaternion rotation)
         {
-            return transform != null ? Quaternion.Inverse(transform.rotation) : rotation;
+            return transform != null ? Quaternion.Inverse(transform.rotation) * rotation : rotation;
         }
 
         /// <summary>

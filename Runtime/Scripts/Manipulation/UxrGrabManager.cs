@@ -306,7 +306,7 @@ namespace UltimateXR.Manipulation
 
                 case UxrManipulationSyncEventType.Place:
 
-                    PlaceObject(syncArgs.EventArgs.GrabbableObject, syncArgs.EventArgs.GrabbableAnchor, syncArgs.EventArgs.PlacementType, propagateEvents);
+                    PlaceObject(syncArgs.EventArgs.GrabbableObject, syncArgs.EventArgs.GrabbableAnchor, syncArgs.EventArgs.PlacementOptions, propagateEvents);
                     break;
 
                 case UxrManipulationSyncEventType.Remove:
@@ -370,8 +370,9 @@ namespace UltimateXR.Manipulation
         /// <param name="handSide">Whether to check the left hand or right hand</param>
         /// <param name="grabbableObject">Returns the closest grabbable object or null if none was found</param>
         /// <param name="grabPoint">Returns the grab point that can be grabbed</param>
+        /// <param name="candidates">List of grabbable objects to process or null to process all current enabled grabbable objects</param>
         /// <returns>Whether a grabbable object was found</returns>
-        public bool GetClosestGrabbableObject(UxrAvatar avatar, UxrHandSide handSide, out UxrGrabbableObject grabbableObject, out int grabPoint)
+        public bool GetClosestGrabbableObject(UxrAvatar avatar, UxrHandSide handSide, out UxrGrabbableObject grabbableObject, out int grabPoint, IEnumerable<UxrGrabbableObject> candidates = null)
         {
             grabbableObject = null;
             grabPoint       = 0;
@@ -380,7 +381,7 @@ namespace UltimateXR.Manipulation
             {
                 if (grabber.Side == handSide)
                 {
-                    return GetClosestGrabbableObject(grabber, out grabbableObject, out grabPoint);
+                    return GetClosestGrabbableObject(grabber, out grabbableObject, out grabPoint, candidates);
                 }
             }
 
@@ -393,8 +394,9 @@ namespace UltimateXR.Manipulation
         /// <param name="grabber">Grabber to check</param>
         /// <param name="grabbableObject">Returns the closest grabbable object or null if none was found</param>
         /// <param name="grabPoint">Returns the grab point that can be grabbed</param>
+        /// <param name="candidates">List of grabbable objects to process or null to process all current enabled grabbable objects</param>
         /// <returns>Whether a grabbable object was found</returns>
-        public bool GetClosestGrabbableObject(UxrGrabber grabber, out UxrGrabbableObject grabbableObject, out int grabPoint)
+        public bool GetClosestGrabbableObject(UxrGrabber grabber, out UxrGrabbableObject grabbableObject, out int grabPoint, IEnumerable<UxrGrabbableObject> candidates = null)
         {
             int   maxPriority                = int.MinValue;
             float minDistanceWithoutRotation = float.MaxValue; // Between different objects we don't take orientations into account
@@ -404,7 +406,7 @@ namespace UltimateXR.Manipulation
 
             // Iterate over objects
 
-            foreach (UxrGrabbableObject candidate in UxrGrabbableObject.EnabledComponents)
+            foreach (UxrGrabbableObject candidate in candidates ?? UxrGrabbableObject.EnabledComponents)
             {
                 float minDistance = float.MaxValue; // For the same object we will not just consider the distance but also how close the grabber is to the grip orientation
 
@@ -510,21 +512,20 @@ namespace UltimateXR.Manipulation
         /// <summary>
         ///     Places a <see cref="UxrGrabbableObject" /> on an <see cref="UxrGrabbableObjectAnchor" />.
         ///     <para>
-        ///         It can be placed either instantly or smoothly depending on <paramref name="placementType" />.
-        ///         If the object is currently being grabbed, all grips will be released. There is one exception to this: when the
-        ///         object is constrained to the world (<see cref="UxrGrabbableObject.IsConstrained" />) because in
-        ///         this case the constraints may prevent the grip from removing the object from the anchor again.
+        ///         It can be placed either instantly or smoothly depending on <paramref name="placementOptions" />.
+        ///         If the object is currently being grabbed, <paramref name="placementOptions" /> can also decide
+        ///         whether the grips are released or not.
         ///     </para>
         /// </summary>
         /// <param name="grabbableObject">The object to place</param>
         /// <param name="anchor">The anchor to place it on</param>
-        /// <param name="placementType">The interpolation to use</param>
+        /// <param name="placementOptions">Placement options</param>
         /// <param name="propagateEvents">Whether to propagate potential Removing/Removed/Placing/Placed events.</param>
         /// <returns>
         ///     Whether the object was placed or not. The placement can fail if there was a null argument or if the anchor has
         ///     already an object on it.
         /// </returns>
-        public bool PlaceObject(UxrGrabbableObject grabbableObject, UxrGrabbableObjectAnchor anchor, UxrPlacementType placementType, bool propagateEvents)
+        public bool PlaceObject(UxrGrabbableObject grabbableObject, UxrGrabbableObjectAnchor anchor, UxrPlacementOptions placementOptions, bool propagateEvents)
         {
             if (grabbableObject == null)
             {
@@ -539,9 +540,9 @@ namespace UltimateXR.Manipulation
             UxrGrabber               grabber      = null;
             int                      grabbedPoint = -1;
             UxrGrabbableObjectAnchor oldAnchor    = grabbableObject.CurrentAnchor;
-            bool                     releaseGrip  = true;
+            bool                     releaseGrip  = !placementOptions.HasFlag(UxrPlacementOptions.DontRelease);
 
-            if (!grabbableObject.IsConstrained)
+            if (releaseGrip)
             {
                 // Release the grips if there are any.
 
@@ -556,9 +557,9 @@ namespace UltimateXR.Manipulation
                     grabbersToRelease.ForEach(g => ReleaseObject(g, grabbableObject, false));
                 }
             }
-            else
+
+            if (grabbableObject.IsConstrained)
             {
-                releaseGrip = false;
                 grabbableObject.StartSmoothConstrain();
             }
 
@@ -663,7 +664,7 @@ namespace UltimateXR.Manipulation
             }
 
             // Start smooth transition to final position/orientation if necessary
-            if (placementType == UxrPlacementType.Smooth)
+            if (placementOptions == UxrPlacementOptions.Smooth)
             {
                 grabbableObject.StartSmoothAnchorPlacement();
             }
@@ -675,7 +676,7 @@ namespace UltimateXR.Manipulation
             // Raise events
 
             UxrManipulationEventArgs placedEventArgs = new UxrManipulationEventArgs(grabbableObject, anchor, grabber, grabbedPoint);
-            placedEventArgs.PlacementType = placementType;
+            placedEventArgs.PlacementOptions = placementOptions;
             OnObjectPlaced(placedEventArgs, propagateEvents);
 
             if (placedEventArgs.Grabber)
@@ -1235,7 +1236,7 @@ namespace UltimateXR.Manipulation
             {
                 grabbableObject.StartSmoothConstrainExit();
             }
-            
+
             if (anchorFrom != null)
             {
                 anchorFrom.CurrentPlacedObject = null;
@@ -1820,48 +1821,8 @@ namespace UltimateXR.Manipulation
             {
                 if (grabber.GrabbedObject == null)
                 {
-                    UxrGrabbableObject grabbableCandidate         = null;
-                    int                grabPointCandidate         = 0;
-                    int                maxPriority                = int.MinValue;
-                    float              minDistanceWithoutRotation = float.MaxValue; // Between different objects we don't take orientations into account
-
-                    foreach (UxrGrabbableObject grabbableObject in UxrGrabbableObject.EnabledComponents)
-                    {
-                        if (grabbableObject.IsGrabbable)
-                        {
-                            // For the same object we will not just consider the distance but also how close the grabber is to the grip orientation
-                            float minDistance = float.MaxValue;
-
-                            for (int point = 0; point < grabbableObject.GrabPointCount; ++point)
-                            {
-                                if (!IsBeingGrabbed(grabbableObject, point) && grabbableObject.CanBeGrabbedByGrabber(grabber, point))
-                                {
-                                    grabbableObject.GetDistanceFromGrabber(grabber, point, out float distance, out float distanceWithoutRotation);
-
-                                    if (grabbableObject.Priority > maxPriority)
-                                    {
-                                        grabbableCandidate         = grabbableObject;
-                                        grabPointCandidate         = point;
-                                        minDistance                = distance;
-                                        minDistanceWithoutRotation = distanceWithoutRotation;
-                                        maxPriority                = grabbableObject.Priority;
-                                    }
-                                    else
-                                    {
-                                        if ((grabbableCandidate == grabbableObject && distance < minDistance) || (grabbableCandidate != grabbableObject && distanceWithoutRotation < minDistanceWithoutRotation))
-                                        {
-                                            grabbableCandidate         = grabbableObject;
-                                            grabPointCandidate         = point;
-                                            minDistance                = distance;
-                                            minDistanceWithoutRotation = distanceWithoutRotation;
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    }
-
-                    if (grabbableCandidate != null)
+                    if (GetClosestGrabbableObject(grabber, out UxrGrabbableObject grabbableCandidate, out int grabPointCandidate) &&
+                        !IsBeingGrabbed(grabbableCandidate, grabPointCandidate))
                     {
                         if (possibleGrabs == null)
                         {
@@ -2215,10 +2176,10 @@ namespace UltimateXR.Manipulation
                         UxrGrabPointInfo grabPointInfo     = grabbableObject.GetGrabPoint(grabbedPoint);
                         bool             alignToController = grabPointInfo.AlignToController;
                         grabPointInfo.AlignToController = false;
-                        
+
                         grabbableObject.CheckAndApplyConstraints(grabber, GetGrabbedPoint(grabber), oldLocalPosition, oldLocalRotation, true);
                         grabbableObject.CheckAndApplyLockHand(grabber, GetGrabbedPoint(grabber));
-                        
+
                         grabPointInfo.AlignToController = alignToController;
                     }
 
@@ -2494,7 +2455,7 @@ namespace UltimateXR.Manipulation
                 }
 
                 // Toggle grab mode
-                ReleaseObject(grabber, grabber.GrabbedObject, true);
+                NotifyReleaseGrab(grabber, true);
                 return;
             }
 
@@ -2518,14 +2479,17 @@ namespace UltimateXR.Manipulation
         ///     Releases an object if the given grabber is grabbing any.
         /// </summary>
         /// <param name="grabber">Grabber to release the object from</param>
-        private void NotifyReleaseGrab(UxrGrabber grabber)
+        /// <param name="fromToggle">Whether the release was from a <see cref="UxrGrabMode.GrabToggle"/></param>
+        private void NotifyReleaseGrab(UxrGrabber grabber, bool fromToggle = false)
         {
             // A release gesture has been made. Check for possible object placements / drop
             if (grabber.GrabbedObject != null)
             {
                 // First check if the grabbed point has toggle mode or keep always mode. In that case we should not release the object but keep it in the grabbed list
 
-                if (_currentGrabs.TryGetValue(grabber.GrabbedObject, out RuntimeGrabInfo grabInfo))
+                RuntimeGrabInfo grabInfo = null;
+                
+                if (_currentGrabs.TryGetValue(grabber.GrabbedObject, out grabInfo) && !fromToggle)
                 {
                     for (int i = 0; i < grabInfo.Grabbers.Count; ++i)
                     {
@@ -2566,7 +2530,7 @@ namespace UltimateXR.Manipulation
                 }
                 else
                 {
-                    PlaceObject(grabber.GrabbedObject, anchorCandidate, UxrPlacementType.Smooth, true);
+                    PlaceObject(grabber.GrabbedObject, anchorCandidate, UxrPlacementOptions.Smooth, true);
                 }
 
                 grabber.GrabbedObject = null;
@@ -2727,8 +2691,9 @@ namespace UltimateXR.Manipulation
             // Constrain using main hand
 
             bool raiseApplyConstraintsEvents = mainGrabInfo.ChildDependentGrabCount == 0 || mainGrabInfo.ChildDependentGrabProcessed == mainGrabInfo.ChildDependentGrabCount - 1;
-            
-            grabbableObjectMain.CheckAndApplyConstraints(grabberMain, grabPointMain, mainGrabInfo.LocalPositionBeforeUpdate, mainGrabInfo.LocalRotationBeforeUpdate, raiseApplyConstraintsEvents && grabbableObjectMain.RotationConstraint != UxrRotationConstraintMode.RestrictLocalRotation);
+            bool isRotationConstrained       = grabbableObjectMain.RotationConstraint != UxrRotationConstraintMode.Free;
+
+            grabbableObjectMain.CheckAndApplyConstraints(grabberMain, grabPointMain, mainGrabInfo.LocalPositionBeforeUpdate, mainGrabInfo.LocalRotationBeforeUpdate, raiseApplyConstraintsEvents && !isRotationConstrained);
 
             // Now just rotate towards the second hand
             Vector3 otherHandPoint = grabbableObjectSecondary.GetGrabPointSnapModeAffectsPosition(grabPointSecondary, UxrHandSnapDirection.ObjectToHand)
@@ -2743,7 +2708,7 @@ namespace UltimateXR.Manipulation
             grabbableObjectMain.transform.RotateAround(grabberMain.transform.position, rotationAxis, Vector3.SignedAngle(currentVectorToSecondHand, desiredVectorToSecondHand, rotationAxis) * lookAtT);
 
             // Second pass to handle possible rotation constraints due to the look-at
-            if (grabbableObjectMain.RotationConstraint == UxrRotationConstraintMode.RestrictLocalRotation)
+            if (isRotationConstrained)
             {
                 grabbableObjectMain.CheckAndApplyConstraints(grabberMain, grabPointMain, mainGrabInfo.LocalPositionBeforeUpdate, mainGrabInfo.LocalRotationBeforeUpdate, raiseApplyConstraintsEvents);
             }

@@ -15,7 +15,7 @@ namespace UltimateXR.UI.UnityInputModule
     ///     interaction.
     /// </summary>
     [RequireComponent(typeof(Canvas))]
-    public class UxrFingerTipRaycaster : GraphicRaycaster
+    public class UxrFingerTipRaycaster : UxrGraphicRaycaster
     {
         #region Inspector Properties/Serialized Fields
 
@@ -55,6 +55,17 @@ namespace UltimateXR.UI.UnityInputModule
         /// <inheritdoc />
         public override void Raycast(PointerEventData eventData, List<RaycastResult> resultAppendList)
         {
+            // Check if it should be ray-casted
+            
+            UxrPointerEventData pointerEventData = eventData as UxrPointerEventData;
+
+            if (pointerEventData == null || pointerEventData.FingerTip == null)
+            {
+                return;
+            }
+
+            // Initialize if necessary
+            
             if (_canvas == null)
             {
                 _canvas      = gameObject.GetComponent<Canvas>();
@@ -77,14 +88,14 @@ namespace UltimateXR.UI.UnityInputModule
 
             // First check finger angle. This helps avoiding unwanted clicks.
 
-            if (Vector3.Angle(eventData.pointerCurrentRaycast.worldNormal, _canvas.transform.forward) > _fingerTipMaxAllowedAngle)
+            if (Vector3.Angle(pointerEventData.FingerTip.WorldDir, _canvas.transform.forward) > _fingerTipMaxAllowedAngle)
             {
                 return;
             }
 
             // Raycast
 
-            var ray = new Ray(eventData.pointerCurrentRaycast.worldPosition, _canvas.transform.forward);
+            var ray = new Ray(pointerEventData.FingerTip.WorldPos, pointerEventData.FingerTip.WorldDir);
             Raycast(_canvas, eventCamera, ray, ref _raycastResults, ref resultAppendList);
 
             // Assign correct indices and get closest raycast

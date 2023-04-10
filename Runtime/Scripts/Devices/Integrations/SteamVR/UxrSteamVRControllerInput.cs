@@ -116,7 +116,7 @@ namespace UltimateXR.Devices.Integrations.SteamVR
 
             if (_actionsInput2D.TryGetValue(input2D, out SteamVR_Action_Vector2 action))
             {
-                return action[source].axis;
+                return FilterTwoAxesDeadZone(action[source].axis, JoystickDeadZone);
             }
 
 #endif
@@ -170,6 +170,7 @@ namespace UltimateXR.Devices.Integrations.SteamVR
             if (enabled)
             {
                 // Listen to device connected events
+                SteamVR_Events.DeviceConnected.Remove(OnDeviceConnected);
                 SteamVR_Events.DeviceConnected.Listen(OnDeviceConnected);
             }
 

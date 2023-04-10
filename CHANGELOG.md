@@ -9,12 +9,104 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Change some common operations to favor execution time: [#12](https://github.com/VRMADA/ultimatexr-unity/pull/12).
-- Add PrecachingStarting and PrecachingFinished events to UxrManager.
+- Add support for Unity UI input on the screen and UltimateXR UI input in VR at
+  the same time.
+- Add new functionality DontRelease to UxrPlacementOptions that keeps the object
+  grabbed when UxrManager.Instance.PlaceObject() is called.
+- Add MinSingleRotationDegrees/MaxSingleRotationDegrees to UxrGrabbableObject when
+  constrained to a single degree of freedom.
+- Add new symbol ULTIMATEXR_UNITY_XR_OCULUS when Unity.XR.Oculus is available.
+- Add joystick deadzone filtering in SteamVR.
+- Add support for position/rotation smoothing in all controller tracking components.
+- Add new UxrLinearPath spline type for linear interpolation in paths.
+
+### Changed
+
+- Improve teleportation raycasts to discard avatar colliders and grabbed objects.
+- Improve teleportation to handle avatars with roll/pitch.
+- Improve Body IK to handle avatars with roll/pitch. Improved precision by
+  performing computations in local avatar space.
+- Rename UxrPlacementType to UxrPlacementOptions.
+- Improve support for HandPositionAroundPivot manipulation mode.
+- Disable UxrInputModule component parameter "Disable Other Input Modules" by default
+  instead of being enabled.
+- Remove deprecated references to CommonUsages.thumbrest and CommonUsages.thumbTouch
+  in UxrUnityXRControllerInput.cs and use OculusUsages.thumbrest and
+  OculusUsages.thumbTouch instead if available. Add support for OculusUsages.indexTouch.
 
 ### Fixed
 
+- Fix laser pointers not working correctly when mixing UI with 2D/3D objects.
+- Fix bug in UI module where finger tips and laser pointers cannot interact with
+  multiple canvases when close to each other.
+- Fix null reference exception in manipulation system when placing constrained objects
+  on anchors and grabbing them again.
+- Fix bug in UxrGrabManager that prevents GrabToggle manipulation mode to place
+  objects on anchors.
+- Fix UxrGrabbableObject manipulation not working correctly when grab points are moved
+  around during grabbing, for example when applying constraints.
+- Fix bug in UxrGrabbableObject.SetGrabPointEnabled not working correctly.
+- Fix UxrGrabPointShapes not computing center of grab correctly in some cases.
+- Fix scaling on root avatar GameObject not working correctly with Body/Arm IK.
+- Fix the following global input events in UxrControllerInput not being called:
+  GlobalButtonStateChanged, GlobalInput1DChanged, GlobalInput2DChanged.
+- Fix warnings in example scene when loading ShotgunPump01.mp3 and ShotgunPump02.mp3
+
+## [0.9.6] - 2023-01-18
+
+### Added
+
+- Add SteamVR support for Rift/Rift-S/Quest/Quest2 headsets and controllers.
+- Add selective 2D/3D/UI GameObject interaction to UxrLaserPointer.
+- Add PrecachingStarting and PrecachingFinished events to UxrManager.
+- Add new exposed parameters to UxrLaserPointer for scripting.
+- Add new exposed parameters to UxrPointerEventData for scripting.
+- Add LocalStandardAvatarController property to UxrAvatar for quick access.
+
+### Changed
+
+- Improve UxrLaserPointer inspector.
+- Improve UxrPointerInputModule event handling.
+- Make UxrControllerInput::GetIgnoreControllerInput() and SetIgnoreControllerInput()
+  static so that they can be called at any point whether the controllers are active or not.
+- Change some common operations to favor execution time:
+  [#12](https://github.com/VRMADA/ultimatexr-unity/pull/12).
+- Make grab preview poses no longer shown by default during play mode in the editor.
+  Preview GameObjects are initially deactivated.
+- Improve hand pose editor load/save dialog boxes by caching the last load and save
+  folders separately.
+- Change .meta files in Examples\FullScene\Settings\URP so that the IDs don't collide
+  with the default URP project IDs.
+
+### Fixed
+
+- Fix Transform.SetLocalPositionAndRotation when not available through new Unity API.
+- Fix UxrLaserPointer to not send UI events when laser is disabled.
+- Fix uninitialized hand pose when hand tracking is supported but not available.
+- Fix grabbable object position constraint not working correctly when grabbed using
+  both hands.
+- Fix UxrGrabbableInspector not storing correctly new grab point parameters right
+  after it has been created.
+- Fix Grab Toggle mode in UxrGrabbableObject not keeping the pose during the grab.
+- Fix "Enable When Hand Near" parameter in UxrGrabbableObject being enabled incorrectly
+  sometimes when another grabbed object was in closer range.
+- Fix hand grab pose incorrectly changing when moving within the range of a grabbable
+  object enabled by a non-default grab button.
+- Fix bug in hand pose editor that prevents to load external pose files when using
+  UltimateXR in package installation mode.
+- Fix bug in hand pose editor where the "Add all poses from folder" loads all hand
+  pose presets instead.
+- Fix UxrGrabManager's GrabObject, PlaceObject, ReleaseObject direct methods calls not
+  updating the avatar's grab pose.
+- Fix global events in UxrControllerInput that should be static but are not:
+  GlobalButtonStateChanged, GlobalInput1DChanged, GlobalInput2DChanged,
+  GlobalHapticRequesting.
+- Fix UxrAvatar Reset to make it override.
 - Fix UxrAvatar.LaserPointers to return correct laser pointers instead of finger tips.
+- Fix avatar parent prefab not being stored correctly when inside a nested prefab.
+- Fix UxrGrenadeWeapon pin so that the timer cannot be reset by quickly releasing
+  and grabbing the pin again.
+- Fix UxrSteamControllerInput so that OnDeviceConnected is called only once.
 
 ## [0.9.5] - 2022-11-12
 
@@ -168,7 +260,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Fix UxrWeaponManager not tracking actors correctly.
 - Fix UxrMagnifyingGlassUrp error when not using URP.
 - Fix CyborgAvatar_URP base to use index controllers correctly.
-- Fix some CyborgAvatar_BRP base materials that were using the URP variants.
+- Fix some CyborgAvatar_BRP base materials that are using the URP variants.
 
 ## [0.8.4] - 2022-08-05
 
@@ -234,7 +326,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - First public release!
 
-[Unreleased]: https://github.com/VRMADA/ultimatexr-unity/compare/v0.9.5...HEAD
+[Unreleased]: https://github.com/VRMADA/ultimatexr-unity/compare/v0.9.6...HEAD
+[0.9.6]: https://github.com/VRMADA/ultimatexr-unity/releases/tag/v0.9.6
 [0.9.5]: https://github.com/VRMADA/ultimatexr-unity/releases/tag/v0.9.5
 [0.9.4]: https://github.com/VRMADA/ultimatexr-unity/releases/tag/v0.9.4
 [0.9.3]: https://github.com/VRMADA/ultimatexr-unity/releases/tag/v0.9.3

@@ -37,6 +37,7 @@ namespace UltimateXR.UI.UnityInputModule
         [SerializeField] protected bool               _disableOtherInputModules    = false;
         [SerializeField] protected bool               _autoEnableOnWorldCanvases   = true;
         [SerializeField] protected bool               _autoAssignEventCamera       = true;
+        [SerializeField] protected bool               _uiClickOnPress              = true;
         [SerializeField] protected UxrInteractionType _interactionTypeOnAutoEnable = UxrInteractionType.FingerTips;
         [SerializeField] protected float              _fingerTipMinHoverDistance   = UxrFingerTipRaycaster.FingerTipMinHoverDistanceDefault;
         [SerializeField] protected int                _dragThreshold               = 40;
@@ -529,7 +530,7 @@ namespace UltimateXR.UI.UnityInputModule
                 // TODO: Be able to control if this feature is enabled via an inspector parameter.
                 // TODO: Check compatibility with drag&drop. 
 
-                if (pointerEventData.pointerPress && !RequiresScrolling(pointerEventData.pointerPress))
+                if (_uiClickOnPress && pointerEventData.pointerPress && !RequiresScrolling(pointerEventData.pointerPress))
                 {
                     // UI element doesn't require scrolling. Perform a click on press instead of a click on release.
                     pointerEventData.eligibleForClick = false;

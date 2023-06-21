@@ -24,6 +24,7 @@ namespace UltimateXR.Editor.UI
             _propertyDisableOtherInputModules    = serializedObject.FindProperty("_disableOtherInputModules");
             _propertyAutoEnableOnWorldCanvases   = serializedObject.FindProperty("_autoEnableOnWorldCanvases");
             _propertyAutoAssignEventCamera       = serializedObject.FindProperty("_autoAssignEventCamera");
+            _propertyUIClickOnPress              = serializedObject.FindProperty("_uiClickOnPress"); 
             _propertyInteractionTypeOnAutoEnable = serializedObject.FindProperty("_interactionTypeOnAutoEnable");
             _propertyFingerTipMinHoverDistance   = serializedObject.FindProperty("_fingerTipMinHoverDistance");
             _propertyDragThreshold               = serializedObject.FindProperty("_dragThreshold");
@@ -45,6 +46,7 @@ namespace UltimateXR.Editor.UI
             EditorGUILayout.PropertyField(_propertyDisableOtherInputModules);
             EditorGUILayout.PropertyField(_propertyAutoEnableOnWorldCanvases);
             EditorGUILayout.PropertyField(_propertyAutoAssignEventCamera);
+            EditorGUILayout.PropertyField(_propertyUIClickOnPress);
             EditorGUILayout.PropertyField(_propertyInteractionTypeOnAutoEnable);
 
             if (_propertyInteractionTypeOnAutoEnable.enumNames[_propertyInteractionTypeOnAutoEnable.enumValueIndex] == UxrInteractionType.FingerTips.ToString())
@@ -64,6 +66,7 @@ namespace UltimateXR.Editor.UI
         private SerializedProperty _propertyDisableOtherInputModules;
         private SerializedProperty _propertyAutoEnableOnWorldCanvases;
         private SerializedProperty _propertyAutoAssignEventCamera;
+        private SerializedProperty _propertyUIClickOnPress;
         private SerializedProperty _propertyInteractionTypeOnAutoEnable;
         private SerializedProperty _propertyFingerTipMinHoverDistance;
         private SerializedProperty _propertyDragThreshold;

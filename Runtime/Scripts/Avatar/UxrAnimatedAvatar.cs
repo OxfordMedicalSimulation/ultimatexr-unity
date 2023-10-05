@@ -90,26 +90,53 @@ namespace UltimateXR.Avatar
             {
                 return true;
             }
+
+            string[] animParams = animName.Split(':');
+
+            if (animParams.Length == 0 || string.IsNullOrEmpty(animParams[0]))
+            {
+                return false;
+            }
             
-            AnimationClip clip = LoadAnimationClip.Invoke(animName);
+            AnimationClip clip = LoadAnimationClip.Invoke(animParams[0]);
             if (clip)
             {
                 clip.legacy = true;
                 clip.wrapMode = WrapMode.ClampForever;
-                if (clip.events.FirstOrDefault(x => x.functionName.Equals("OnAnimationCompleted")) == null)
+                float eventEnd = clip.length;
+
+                if (animParams.Length == 3)
+                {
+                    int firstFrame = int.Parse(animParams[1]);
+                    int lastFrame = int.Parse(animParams[2]);
+                    
+                    if (firstFrame >= lastFrame) 
+                        lastFrame = firstFrame + 1;
+                    
+                    eventEnd = (lastFrame - firstFrame) / clip.frameRate;
+                    hand.Animation.AddClip(clip, animName, firstFrame, lastFrame);
+                }
+                else
+                {
+                    hand.Animation.AddClip(clip, animName);
+                }
+                
+                AnimationClip newClip = hand.Animation.GetClip(animName);
+                if (newClip.events.FirstOrDefault(x => x.functionName.Equals("OnAnimationCompleted")) == null)
                 {
                     AnimationEvent endEvent = new AnimationEvent();
-                    endEvent.time = clip.length;
+                    endEvent.time = eventEnd;
                     endEvent.functionName = "OnAnimationCompleted";
                     endEvent.stringParameter = animName;
                     endEvent.intParameter = (int)hand.EventHandler.HandSide;
-                    clip.AddEvent(endEvent);
+                    endEvent.floatParameter = eventEnd;
+                    newClip.AddEvent(endEvent);
                 }
-                hand.Animation.AddClip(clip, animName);
+
                 return true;
             }
             
-            Debug.LogError($"Hand animation clip \"{animName}\" not found");
+            Debug.LogError($"Hand animation clip \"{animParams[0]}\" not found");
 
             return false;
         }

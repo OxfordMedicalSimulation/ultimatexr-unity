@@ -75,6 +75,16 @@ namespace UltimateXR.Devices
         ///     Gets the world-space rotation that the right hand bone should have using the right sensor data.
         /// </summary>
         Quaternion SensorRightHandRot { get; }
+        
+        /// <summary>
+        ///     Gets/sets whether the left hand position/rotation should update in response to controller movement.
+        /// </summary>
+        bool ShouldUpdateLeftHand { get; set; }
+        
+        /// <summary>
+        ///     Gets/sets whether the right hand position/rotation should update in response to controller movement.
+        /// </summary>
+        bool ShouldUpdateRightHand { get; set; }
 
         #endregion
     }

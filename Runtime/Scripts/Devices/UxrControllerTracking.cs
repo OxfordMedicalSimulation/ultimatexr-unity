@@ -97,6 +97,20 @@ namespace UltimateXR.Devices
         /// <inheritdoc />
         public Quaternion SensorRightHandRot => SensorRightRot * _localSensorRightHandRot;
 
+        /// <inheritdoc />
+        public bool ShouldUpdateLeftHand 
+        {
+            get => _updateAvatarLeftHand;
+            set => _updateAvatarLeftHand = value;
+        }
+        
+        /// <inheritdoc />
+        public bool ShouldUpdateRightHand
+        {
+            get => _updateAvatarRightHand;
+            set => _updateAvatarRightHand = value;
+        }
+
         #endregion
 
         #region Unity

@@ -59,7 +59,7 @@ namespace UltimateXR.Devices.Integrations.Meta
         {
             get
             {
-                if (UxrTrackingDevice.HeadsetDeviceName is "Oculus Quest2" ||
+                if (UxrTrackingDevice.HeadsetDeviceName is "Oculus Quest2" || 
                     UxrTrackingDevice.HeadsetDeviceName is "Meta Quest 3")
                 {
                     yield return "Oculus Touch Controller - Left";

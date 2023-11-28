@@ -979,7 +979,7 @@ namespace UltimateXR.Manipulation
             UxrGrabPointInfo grabPointInfo = GetGrabPoint(grabPoint);
             Transform        snapTransform = GetGrabPointGrabAlignTransform(grabber.Avatar, grabPoint, grabber.Side);
 
-            if (snapTransform == null || grabPointInfo == null)
+            if (snapTransform == null || grabPointInfo == null || grabPointInfo.SnapMode == UxrSnapToHandMode.DontSnap)
             {
                 return false;
             }

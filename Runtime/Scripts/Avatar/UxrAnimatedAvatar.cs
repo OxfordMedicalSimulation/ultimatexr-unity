@@ -57,10 +57,9 @@ namespace UltimateXR.Avatar
                     handState.EventHandler.OnAnimationCompleted(handState.CurrentAnimName);
                     handState.EventHandler.RegisterOnComplete(poseName, onComplete);
                 }
-                handState.Animation.CrossFade(poseName, 0.1f);
+                handState.Animation.CrossFadeQueued(poseName, 0.1f, QueueMode.PlayNow);
                 handState.CurrentAnimName = poseName;
                 handState.CurrentAnimPriority = priority;
-                //Debug.LogError($"XXXXXX Animation started {handState.CurrentAnimName} - {handSide.ToString()}");
 
                 if (propagateEvents)
                 {
@@ -79,7 +78,6 @@ namespace UltimateXR.Avatar
             if (string.IsNullOrEmpty(key) || handState.CurrentAnimName.Equals(key))
             {
                 handState.CurrentAnimPriority = 0;
-                //Debug.LogError($"XXXXXX Animation stopped {handState.CurrentAnimName} - {handSide.ToString()}");
                 SetCurrentHandAnimation(handSide, DefaultHandPoseName);
             }
         }

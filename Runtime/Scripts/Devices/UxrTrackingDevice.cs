@@ -6,6 +6,7 @@
 using System;
 using System.Collections.Generic;
 using UltimateXR.Core.Components.Composite;
+using UnityEngine;
 using UnityEngine.XR;
 
 namespace UltimateXR.Devices
@@ -34,16 +35,20 @@ namespace UltimateXR.Devices
         {
             get
             {
-                var inputDevices = new List<InputDevice>();
-                InputDevices.GetDevices(inputDevices);
+                #if UNITY_ANDROID && !UNITY_EDITOR
+                    return SystemInfo.deviceName;
+                #else
+                    var allDevices = new List<InputDevice>();
+                    InputDevices.GetDevices(allDevices);
 
-                foreach (var device in inputDevices)
-                {
-                    if (device.characteristics.HasFlag(InputDeviceCharacteristics.HeadMounted))
+                    foreach (var device in allDevices)
                     {
-                        return device.name;
+                        if (device.characteristics.HasFlag(InputDeviceCharacteristics.HeadMounted))
+                        {
+                            return device.name;
+                        }
                     }
-                }
+                #endif
 
                 return string.Empty;
             }

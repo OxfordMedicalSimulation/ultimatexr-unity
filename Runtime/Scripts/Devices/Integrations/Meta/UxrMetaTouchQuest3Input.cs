@@ -1,18 +1,17 @@
 ﻿// --------------------------------------------------------------------------------------------------------------------
-// <copyright file="UxrMetaTouchQuest2Input.cs" company="VRMADA">
+// <copyright file="UxrMetaTouchQuest3Input.cs" company="VRMADA">
 //   Copyright (c) VRMADA, All rights reserved.
 // </copyright>
 // --------------------------------------------------------------------------------------------------------------------
 using System.Collections.Generic;
 using UltimateXR.Core;
-using UnityEngine;
 
 namespace UltimateXR.Devices.Integrations.Meta
 {
     /// <summary>
     ///     Oculus Touch controller input using Oculus SDK.
     /// </summary>
-    public class UxrMetaTouchQuest2Input : UxrUnityXRControllerInput
+    public class UxrMetaTouchQuest3Input : UxrUnityXRControllerInput
     {
         #region Public Overrides UxrControllerInput
 
@@ -60,8 +59,9 @@ namespace UltimateXR.Devices.Integrations.Meta
         {
             get
             {
-                if (UxrTrackingDevice.HeadsetDeviceName is "Quest 2" ||
-                    UxrTrackingDevice.HeadsetDeviceName is "Oculus Quest2")
+                if (UxrTrackingDevice.HeadsetDeviceName is "Oculus Quest3" ||
+                    UxrTrackingDevice.HeadsetDeviceName is "Meta Quest 3" ||
+                    UxrTrackingDevice.HeadsetDeviceName is "Quest 3")
                 {
                     yield return "Oculus Touch Controller - Left";
                     yield return "Oculus Touch Controller - Right";

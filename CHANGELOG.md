@@ -7,8 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+- Soon v1.0.0 with full multiplayer support and tons of new features.
+
+## [0.9.7] - 2024-01-10
+
 ### Added
 
+- Add support for Meta Quest 3.
+- Add support for Magic Leap 2.
+- Add support for Virtual Desktop controller naming.
 - Add support for Unity UI input on the screen and UltimateXR UI input in VR at
   the same time.
 - Add new functionality DontRelease to UxrPlacementOptions that keeps the object
@@ -36,6 +43,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Fix UxrLaserPointer hit quad position using controller forward.
+- Fix Pico controllers not working after using home button.
+- Fix Valve Index controllers' forward vectors.
 - Fix laser pointers not working correctly when mixing UI with 2D/3D objects.
 - Fix bug in UI module where finger tips and laser pointers cannot interact with
   multiple canvases when close to each other.
@@ -50,6 +60,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Fix scaling on root avatar GameObject not working correctly with Body/Arm IK.
 - Fix the following global input events in UxrControllerInput not being called:
   GlobalButtonStateChanged, GlobalInput1DChanged, GlobalInput2DChanged.
+- Fix UxrUnityXRControllerInput components not getting haptic capabilities correctly.
 - Fix warnings in example scene when loading ShotgunPump01.mp3 and ShotgunPump02.mp3
 
 ## [0.9.6] - 2023-01-18
@@ -326,7 +337,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - First public release!
 
-[Unreleased]: https://github.com/VRMADA/ultimatexr-unity/compare/v0.9.6...HEAD
+[Unreleased]: https://github.com/VRMADA/ultimatexr-unity/compare/v0.9.7...HEAD
+[0.9.7]: https://github.com/VRMADA/ultimatexr-unity/releases/tag/v0.9.7
 [0.9.6]: https://github.com/VRMADA/ultimatexr-unity/releases/tag/v0.9.6
 [0.9.5]: https://github.com/VRMADA/ultimatexr-unity/releases/tag/v0.9.5
 [0.9.4]: https://github.com/VRMADA/ultimatexr-unity/releases/tag/v0.9.4

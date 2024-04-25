@@ -900,8 +900,7 @@ namespace UltimateXR.Avatar.Controllers
             string             overrideGrabPoseName = UxrGrabManager.Instance.GetOverrideGrabPoseName(grabber, grabbableObject);
             UxrRuntimeHandPose overrideGrabPose     = !string.IsNullOrEmpty(overrideGrabPoseName) ? Avatar.GetRuntimeHandPose(overrideGrabPoseName) : null;
 
-            bool overrideValid = overrideGrabPose != null ||
-                                 (!string.IsNullOrEmpty(overrideGrabPoseName) && Avatar is UxrAnimatedAvatar);
+            bool overrideValid = overrideGrabPose != null || !string.IsNullOrEmpty(overrideGrabPoseName);
             if (overrideValid)
             {
                 if (grabber.Side == UxrHandSide.Left)

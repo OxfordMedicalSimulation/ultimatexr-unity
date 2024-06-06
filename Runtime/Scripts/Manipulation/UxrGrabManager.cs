@@ -2216,7 +2216,7 @@ namespace UltimateXR.Manipulation
             if (LogLevel >= UxrLogLevel.Relevant)
             {
                 string handInfo = e.Grabber != null ? $" using {e.Grabber.Side.ToString().ToLower()} hand" : string.Empty;
-                Debug.Log($"{UxrConstants.ManipulationModule}: Grabbing {e.GrabbableObject.name}{handInfo}");
+                //Debug.Log($"{UxrConstants.ManipulationModule}: Grabbing {e.GrabbableObject.name}{handInfo}");
             }
 
             if (propagateEvent)
@@ -2249,7 +2249,7 @@ namespace UltimateXR.Manipulation
             if (LogLevel >= UxrLogLevel.Relevant)
             {
                 string handInfo = e.Grabber != null ? $" using {e.Grabber.Side.ToString().ToLower()} hand" : string.Empty;
-                Debug.Log($"{UxrConstants.ManipulationModule}: Releasing {e.GrabbableObject.name}{handInfo}");
+                //Debug.Log($"{UxrConstants.ManipulationModule}: Releasing {e.GrabbableObject.name}{handInfo}");
             }
 
             if (propagateEvent)

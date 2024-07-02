@@ -28,6 +28,18 @@ namespace UltimateXR.Animation.Interpolation
         {
             return Mathf.Lerp(oldValue, newValue, GetSmoothInterpolationValue(smooth, Time.deltaTime));
         }
+        
+        /// <summary>
+        ///     Smooths a float value using the previous value, new value and a smooth value between [0.0, 1.0], using unscaledDeltaTime.
+        /// </summary>
+        /// <param name="oldValue">Old value</param>
+        /// <param name="newValue">New value</param>
+        /// <param name="smooth">Smooth value [0.0, 1.0] where 0.0 is no smoothing and 1.0 is maximum smoothing</param>
+        /// <returns>Smoothed value</returns>
+        public static float SmoothDampUnscaled(float oldValue, float newValue, float smooth)
+        {
+            return Mathf.Lerp(oldValue, newValue, GetSmoothInterpolationValue(smooth, Time.unscaledDeltaTime));
+        }
 
         /// <summary>
         ///     Smooths a position value using the last position, new position and a smooth value between [0.0, 1.0].
@@ -39,6 +51,18 @@ namespace UltimateXR.Animation.Interpolation
         public static Vector3 SmoothDampPosition(Vector3 oldPos, Vector3 newPos, float smooth)
         {
             return Vector3.Lerp(oldPos, newPos, GetSmoothInterpolationValue(smooth, Time.deltaTime));
+        }
+        
+        /// <summary>
+        ///     Smooths a position value using the last position, new position and a smooth value between [0.0, 1.0], using unscaledDeltaTime.
+        /// </summary>
+        /// <param name="oldPos">Old position</param>
+        /// <param name="newPos">New position</param>
+        /// <param name="smooth">Smooth value [0.0, 1.0] where 0.0 is no smoothing and 1.0 is maximum smoothing</param>
+        /// <returns>Smoothed position value</returns>
+        public static Vector3 SmoothDampPositionUnscaled(Vector3 oldPos, Vector3 newPos, float smooth)
+        {
+            return Vector3.Lerp(oldPos, newPos, GetSmoothInterpolationValue(smooth, Time.unscaledDeltaTime));
         }
 
         /// <summary>
@@ -52,6 +76,19 @@ namespace UltimateXR.Animation.Interpolation
         public static Quaternion SmoothDampRotation(Quaternion oldRot, Quaternion newRot, float smooth)
         {
             return Quaternion.Slerp(oldRot, newRot, GetSmoothInterpolationValue(smooth, Time.deltaTime));
+        }
+        
+        /// <summary>
+        ///     Smooths a rotation value using the last rotation, new rotation and a smooth value between [0.0, 1.0], using unscaledDeltaTime.
+        ///     This tries to do something similar to <see cref="Vector3.SmoothDamp" /> but for rotations.
+        /// </summary>
+        /// <param name="oldRot">Old rotation</param>
+        /// <param name="newRot">New rotation</param>
+        /// <param name="smooth">Smooth value [0.0, 1.0] where 0.0 is no smoothing and 1.0 is maximum smoothing</param>
+        /// <returns>Smoothed rotation value</returns>
+        public static Quaternion SmoothDampRotationUnscaled(Quaternion oldRot, Quaternion newRot, float smooth)
+        {
+            return Quaternion.Slerp(oldRot, newRot, GetSmoothInterpolationValue(smooth, Time.unscaledDeltaTime));
         }
 
         /// <summary>

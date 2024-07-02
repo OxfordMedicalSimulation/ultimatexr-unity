@@ -28,6 +28,7 @@ namespace UltimateXR.Devices
         [SerializeField]                                          private bool  _updateAvatarRightHand = true;
         [SerializeField] [Range(0, 1)]                            private float _smoothPosition;
         [SerializeField] [Range(0, 1)]                            private float _smoothRotation;
+        [SerializeField]                                          private bool  _smoothUnscaledTime = false;
 
         #endregion
 
@@ -251,8 +252,20 @@ namespace UltimateXR.Devices
         {
             if (side == UxrHandSide.Left)
             {
-                LocalAvatarLeftHandSensorPos = UxrInterpolator.SmoothDampPosition(_lastLeftSensorLocalPos, localPos, _leftSensorInitialized ? _smoothPosition : 0.0f);
-                LocalAvatarLeftHandSensorRot = UxrInterpolator.SmoothDampRotation(_lastLeftSensorLocalRot, localRot, _leftSensorInitialized ? _smoothRotation : 0.0f);
+                if (_smoothUnscaledTime)
+                {
+                    LocalAvatarLeftHandSensorPos = UxrInterpolator.SmoothDampPositionUnscaled(_lastLeftSensorLocalPos, 
+                        localPos, _leftSensorInitialized ? _smoothPosition : 0.0f);
+                    LocalAvatarLeftHandSensorRot = UxrInterpolator.SmoothDampRotationUnscaled(_lastLeftSensorLocalRot, 
+                        localRot, _leftSensorInitialized ? _smoothRotation : 0.0f);
+                }
+                else
+                {
+                    LocalAvatarLeftHandSensorPos = UxrInterpolator.SmoothDampPosition(_lastLeftSensorLocalPos, 
+                        localPos, _leftSensorInitialized ? _smoothPosition : 0.0f);
+                    LocalAvatarLeftHandSensorRot = UxrInterpolator.SmoothDampRotation(_lastLeftSensorLocalRot, 
+                        localRot, _leftSensorInitialized ? _smoothRotation : 0.0f);
+                }
 
                 _leftSensorInitialized  = true;
                 _lastLeftSensorLocalPos = LocalAvatarLeftHandSensorPos;
@@ -260,8 +273,20 @@ namespace UltimateXR.Devices
             }
             else if (side == UxrHandSide.Right)
             {
-                LocalAvatarRightHandSensorPos = UxrInterpolator.SmoothDampPosition(_lastRightSensorLocalPos, localPos, _rightSensorInitialized ? _smoothPosition : 0.0f);
-                LocalAvatarRightHandSensorRot = UxrInterpolator.SmoothDampRotation(_lastRightSensorLocalRot, localRot, _rightSensorInitialized ? _smoothRotation : 0.0f);
+                if (_smoothUnscaledTime)
+                {
+                    LocalAvatarRightHandSensorPos = UxrInterpolator.SmoothDampPositionUnscaled(_lastRightSensorLocalPos,
+                        localPos, _rightSensorInitialized ? _smoothPosition : 0.0f);
+                    LocalAvatarRightHandSensorRot = UxrInterpolator.SmoothDampRotationUnscaled(_lastRightSensorLocalRot,
+                        localRot, _rightSensorInitialized ? _smoothRotation : 0.0f);
+                }
+                else
+                {
+                    LocalAvatarRightHandSensorPos = UxrInterpolator.SmoothDampPosition(_lastRightSensorLocalPos,
+                        localPos, _rightSensorInitialized ? _smoothPosition : 0.0f);
+                    LocalAvatarRightHandSensorRot = UxrInterpolator.SmoothDampRotation(_lastRightSensorLocalRot,
+                        localRot, _rightSensorInitialized ? _smoothRotation : 0.0f);
+                }
 
                 _rightSensorInitialized  = true;
                 _lastRightSensorLocalPos = LocalAvatarRightHandSensorPos;

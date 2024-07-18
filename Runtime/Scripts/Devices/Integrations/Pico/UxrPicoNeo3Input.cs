@@ -57,6 +57,8 @@ namespace UltimateXR.Devices.Integrations.Pico
                 yield return "PicoXR Controller-Right";
                 yield return "PICO Controller-Left";
                 yield return "PICO Controller-Right";
+                yield return "PICO Live Preview Controller-Left";
+                yield return "PICO Live Preview Controller-Right";
             }
         }
 

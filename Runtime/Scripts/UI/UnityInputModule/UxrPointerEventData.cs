@@ -61,12 +61,12 @@ namespace UltimateXR.UI.UnityInputModule
         /// <summary>
         ///     Gets whether the pointer is pressing this frame.
         /// </summary>
-        public bool PressedThisFrame { get; internal set; }
+        public bool PressedThisFrame { get; set; }
 
         /// <summary>
         ///     Gets whether the pointer is pressing this frame.
         /// </summary>
-        public bool ReleasedThisFrame { get; internal set; }
+        public bool ReleasedThisFrame { get; set; }
 
         /// <summary>
         ///     Gets whether the current raycast UI element is interactive.

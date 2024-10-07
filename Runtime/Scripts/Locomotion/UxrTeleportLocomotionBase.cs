@@ -24,8 +24,8 @@ namespace UltimateXR.Locomotion
 
         // General parameters
 
-        [SerializeField] private UxrHandSide          _controllerHand       = UxrHandSide.Left;
-        [SerializeField] private bool                 _useControllerForward = true;
+        [SerializeField] protected UxrHandSide        _controllerHand           = UxrHandSide.Left;
+        [SerializeField] protected bool               _useControllerForward     = true;
         [SerializeField] private bool                 _parentToDestination;
         [SerializeField] private float                _shakeFilter              = 0.4f;
         [SerializeField] private UxrTranslationType   _translationType          = UxrTranslationType.Fade;
@@ -269,6 +269,8 @@ namespace UltimateXR.Locomotion
             get => _blockingTargetLayers;
             set => _blockingTargetLayers = value;
         }
+        
+        public float AvatarHeightOffset { get; set; }
 
         #endregion
 
@@ -427,7 +429,8 @@ namespace UltimateXR.Locomotion
 
             if (backStepInput && _isBackStepAvailable && IsAllowedToTeleport)
             {
-                Vector3 newPosition = Avatar.CameraFloorPosition - Avatar.ProjectedCameraForward * _backStepDistance;
+                Vector3 newPosition = Avatar.CameraFloorPosition  - Avatar.ProjectedCameraForward * _backStepDistance;
+                newPosition.y -= AvatarHeightOffset;
 
                 if (HasBlockingRaycastHit(Avatar,
                                           newPosition + UpVector * RaycastAboveGround,
@@ -507,6 +510,7 @@ namespace UltimateXR.Locomotion
             }
 
             Vector3 localNewPosition = Avatar.transform.InverseTransformPoint(newPosition);
+            localNewPosition.y += AvatarHeightOffset;
 
             if (Mathf.Abs(localNewPosition.y) > MaxAllowedHeightDifference)
             {
@@ -739,9 +743,12 @@ namespace UltimateXR.Locomotion
 
                 UxrTeleportSpawnCollider spawnCollider = _lastSpawnCollider;
 
+                Vector3 newPos = TransformExt.GetWorldPosition(TeleportReference, TeleportLocalPosition);
+                newPos.y += AvatarHeightOffset;
+
                 UxrManager.Instance.TeleportLocalAvatarRelative(TeleportReference,
                                                                 parentToDestination,
-                                                                TransformExt.GetWorldPosition(TeleportReference, TeleportLocalPosition),
+                                                                newPos,
                                                                 Quaternion.LookRotation(TransformExt.GetWorldDirection(TeleportReference, TeleportLocalDirection), UpVector),
                                                                 _translationType,
                                                                 TranslationSeconds,

@@ -61,7 +61,7 @@ namespace UltimateXR.Devices.Integrations.Meta
             {
                 if (UxrTrackingDevice.HeadsetDeviceName is "Oculus Quest3" ||
                     UxrTrackingDevice.HeadsetDeviceName is "Meta Quest 3" ||
-                    UxrTrackingDevice.HeadsetDeviceName is "Meta Quest 3S" ||
+                    UxrTrackingDevice.HeadsetDeviceName is "ventura" ||
                     UxrTrackingDevice.HeadsetDeviceName is "Quest 3S" ||
                     UxrTrackingDevice.HeadsetDeviceName is "Quest 3")
                 {

@@ -175,12 +175,12 @@ namespace UltimateXR.Manipulation
         /// <summary>
         ///     Gets the relative position of the hand bone to the grabber.
         /// </summary>
-        public Vector3 HandBoneRelativePos { get; private set; }
+        public Vector3 HandBoneRelativePos => HandBone != null ? transform.InverseTransformPoint(HandBone.position) : Vector3.zero;
 
         /// <summary>
         ///     Gets the relative rotation of the hand bone to the grabber.
         /// </summary>
-        public Quaternion HandBoneRelativeRot { get; private set; }
+        public Quaternion HandBoneRelativeRot => HandBone != null ? Quaternion.Inverse(transform.rotation) * HandBone.rotation : Quaternion.identity;
 
         /// <summary>
         ///     Gets or sets the hand renderer.
@@ -358,8 +358,6 @@ namespace UltimateXR.Manipulation
                 // Compute hand bone info
 
                 HandBone            = Avatar.GetHandBone(Side);
-                HandBoneRelativePos = HandBone != null ? transform.InverseTransformPoint(HandBone.position) : Vector3.zero;
-                HandBoneRelativeRot = HandBone != null ? Quaternion.Inverse(transform.rotation) * HandBone.rotation : Quaternion.identity;
 
                 // Compute grabber info
 

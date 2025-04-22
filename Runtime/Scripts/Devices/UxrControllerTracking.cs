@@ -305,7 +305,7 @@ namespace UltimateXR.Devices
         private bool SetupCamera()
         {
             List<XRInputSubsystem> inputSubsystems = new List<XRInputSubsystem>();
-            SubsystemManager.GetInstances(inputSubsystems);
+            SubsystemManager.GetSubsystems(inputSubsystems);
 
             if (inputSubsystems.Count == 0)
             {

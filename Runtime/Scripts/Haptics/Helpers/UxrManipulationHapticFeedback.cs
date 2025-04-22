@@ -375,7 +375,7 @@ namespace UltimateXR.Haptics.Helpers
                 return;
             }
 
-            float speed        = _useExternalRigidbody && _externalRigidbody ? _externalRigidbody.velocity.magnitude : _linearSpeed;
+            float speed        = _useExternalRigidbody && _externalRigidbody ? _externalRigidbody.linearVelocity.magnitude : _linearSpeed;
             float angularSpeed = _useExternalRigidbody && _externalRigidbody ? _externalRigidbody.angularVelocity.magnitude : _angularSpeed;
 
             float quantityPos = _maxSpeed - _minSpeed <= 0.0f ? 0.0f : (speed - _minSpeed) / (_maxSpeed - _minSpeed);

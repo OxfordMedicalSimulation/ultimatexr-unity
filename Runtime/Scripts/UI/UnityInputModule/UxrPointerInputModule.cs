@@ -432,7 +432,6 @@ namespace UltimateXR.UI.UnityInputModule
             bool pressedNow = pointerEventData.pointerPress != null;
 
             // Default haptic feedback if we don't have UxrControlInput
-
             if (useDefaultHaptics && UxrAvatar.LocalAvatarInput && pointerEventData.pointerPress.GetComponent<UxrControlInput>() == null)
             {
                 if (pointerEventData.GameObjectClicked  || pressedNow && !pressedBefore)

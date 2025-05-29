@@ -433,27 +433,13 @@ namespace UltimateXR.UI.UnityInputModule
 
             // Default haptic feedback if we don't have UxrControlInput
 
-            if (useDefaultHaptics)
+            if (useDefaultHaptics && UxrAvatar.LocalAvatarInput && pointerEventData.pointerPress.GetComponent<UxrControlInput>() == null)
             {
-                if (pressedNow && !pressedBefore && pointerEventData.pointerPress.GetComponent<UxrControlInput>() == null)
+                if (pointerEventData.GameObjectClicked  || pressedNow && !pressedBefore)
                 {
-                    if (UxrAvatar.LocalAvatarInput)
-                    {
-                        UxrAvatar.LocalAvatarInput.SendHapticFeedback(pointerEventData.HandSide, UxrHapticClipType.Click, 0.2f);
-                    }
-                }
-
-                if (pointerEventData.GameObjectClicked)
-                {
-                    if (pointerEventData.GameObjectClicked.GetComponent<UxrControlInput>() == null)
-                    {
-                        if (UxrAvatar.LocalAvatarInput)
-                        {
-                            UxrAvatar.LocalAvatarInput.SendHapticFeedback(pointerEventData.HandSide, UxrHapticClipType.Click, 0.6f);
-                        }
-                    }
-
-                    pointerEventData.GameObjectClicked = null;
+                    float amplitude = pressedNow && !pressedBefore ? 0.2f : 0.6f;
+                    UxrAvatar.LocalAvatarInput.SendHapticFeedback(pointerEventData.HandSide, UxrHapticClipType.Click, amplitude);
+                    pointerEventData.GameObjectClicked = pointerEventData.GameObjectClicked ?  null : pointerEventData.GameObjectClicked;
                 }
             }
             

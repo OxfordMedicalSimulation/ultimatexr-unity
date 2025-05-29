@@ -419,7 +419,7 @@ namespace UltimateXR.UI.UnityInputModule
         ///     Processes the pointer events.
         /// </summary>
         /// <param name="pointerEventData">Pointer event data</param>
-        protected virtual void ProcessPointerEvents(UxrPointerEventData pointerEventData)
+        protected virtual void ProcessPointerEvents(UxrPointerEventData pointerEventData, bool useDefaultHaptics = false)
         {
             // Handle events
 
@@ -432,28 +432,16 @@ namespace UltimateXR.UI.UnityInputModule
             bool pressedNow = pointerEventData.pointerPress != null;
 
             // Default haptic feedback if we don't have UxrControlInput
-
-            if (pressedNow && !pressedBefore && pointerEventData.pointerPress.GetComponent<UxrControlInput>() == null)
+            if (useDefaultHaptics && UxrAvatar.LocalAvatarInput && pointerEventData.pointerPress.GetComponent<UxrControlInput>() == null)
             {
-                if (UxrAvatar.LocalAvatarInput)
+                if (pointerEventData.GameObjectClicked  || pressedNow && !pressedBefore)
                 {
-                    UxrAvatar.LocalAvatarInput.SendHapticFeedback(pointerEventData.HandSide, UxrHapticClipType.Click, 0.2f);
+                    float amplitude = pressedNow && !pressedBefore ? 0.2f : 0.6f;
+                    UxrAvatar.LocalAvatarInput.SendHapticFeedback(pointerEventData.HandSide, UxrHapticClipType.Click, amplitude);
+                    pointerEventData.GameObjectClicked = pointerEventData.GameObjectClicked ?  null : pointerEventData.GameObjectClicked;
                 }
             }
-
-            if (pointerEventData.GameObjectClicked)
-            {
-                if (pointerEventData.GameObjectClicked.GetComponent<UxrControlInput>() == null)
-                {
-                    if (UxrAvatar.LocalAvatarInput)
-                    {
-                        UxrAvatar.LocalAvatarInput.SendHapticFeedback(pointerEventData.HandSide, UxrHapticClipType.Click, 0.6f);
-                    }
-                }
-
-                pointerEventData.GameObjectClicked = null;
-            }
-
+            
             pointerEventData.Speed = pointerEventData.delta.magnitude / Time.deltaTime;
         }
 

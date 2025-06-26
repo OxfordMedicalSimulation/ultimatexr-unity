@@ -823,7 +823,7 @@ namespace UltimateXR.Locomotion
         ///     Notifies a change in the currently targeted <see cref="UxrTeleportSpawnCollider" /> component.
         /// </summary>
         /// <param name="teleportSpawnCollider">New currently targeted component or null if none is selected</param>
-        private void NotifyTeleportSpawnCollider(UxrTeleportSpawnCollider teleportSpawnCollider)
+        protected virtual void NotifyTeleportSpawnCollider(UxrTeleportSpawnCollider teleportSpawnCollider)
         {
             if (teleportSpawnCollider && teleportSpawnCollider.enabled)
             {
@@ -1030,6 +1030,15 @@ namespace UltimateXR.Locomotion
                 }
             }
         }
+        /// <summary>
+        /// Gets the current teleport target <see cref="UxrTeleportTarget" /> .
+        /// </summary>
+        protected UxrTeleportTarget TeleportTarget => _teleportTarget;
+        
+        /// <summary>
+        /// Gets the current teleport spawn collider <see cref="UxrTeleportSpawnCollider" /> .
+        /// </summary>
+        protected UxrTeleportSpawnCollider LastSpawnCollider => _lastSpawnCollider;
 
         #endregion
 

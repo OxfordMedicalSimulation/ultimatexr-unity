@@ -41,6 +41,7 @@ namespace UltimateXR.UI.UnityInputModule
         [SerializeField] protected UxrInteractionType _interactionTypeOnAutoEnable = UxrInteractionType.FingerTips;
         [SerializeField] protected float              _fingerTipMinHoverDistance   = UxrFingerTipRaycaster.FingerTipMinHoverDistanceDefault;
         [SerializeField] protected int                _dragThreshold               = 40;
+        [SerializeField] protected float              _fingerTipMaxDragDistance    = 0.02f;
 
         #endregion
 
@@ -530,18 +531,13 @@ namespace UltimateXR.UI.UnityInputModule
             // PointerUp notification
             if (pointerEventData.ReleasedThisFrame)
             {
-                ExecuteEvents.Execute(pointerEventData.pointerPress, pointerEventData, ExecuteEvents.pointerUpHandler);
+                ExecuteEvents.Execute(pointerEventData.pointerPress, pointerEventData, ExecuteEvents.pointerClickHandler);
+                pointerEventData.GameObjectClicked = pointerEventData.pointerPress;
 
                 // see if the release is on the same element that was pressed...
                 GameObject pointerUpHandler = ExecuteEvents.GetEventHandler<IPointerClickHandler>(currentOverGo);
-
-                // PointerClick and Drop events
-                if (pointerEventData.pointerPress == pointerUpHandler && pointerEventData.eligibleForClick)
-                {
-                    ExecuteEvents.Execute(pointerEventData.pointerPress, pointerEventData, ExecuteEvents.pointerClickHandler);
-                    pointerEventData.GameObjectClicked = pointerEventData.pointerPress;
-                }
-                else if (pointerEventData.pointerDrag != null)
+                
+                if (pointerEventData.pointerDrag != null)
                 {
                     ExecuteEvents.ExecuteHierarchy(currentOverGo, pointerEventData, ExecuteEvents.dropHandler);
                 }
@@ -571,9 +567,62 @@ namespace UltimateXR.UI.UnityInputModule
             }
         }
 
+        /// <summary>
+        /// Process the drag for the current frame with the given pointer event.
+        /// </summary>
+        protected void ProcessDrag(UxrPointerEventData pointerEvent)
+        {
+            if (!pointerEvent.IsPointerMoving() ||
+                Cursor.lockState == CursorLockMode.Locked ||
+                pointerEvent.pointerDrag == null)
+                return;
+
+            if (!pointerEvent.dragging
+                && ShouldStartDrag(pointerEvent, eventSystem.pixelDragThreshold))
+            {
+                ExecuteEvents.Execute(pointerEvent.pointerDrag, pointerEvent, ExecuteEvents.beginDragHandler);
+                pointerEvent.dragging = true;
+            }
+
+            // Drag notification
+            if (pointerEvent.dragging)
+            {
+                if (!IsFingerTipTouch(pointerEvent))
+                {
+                    pointerEvent.dragging = false;
+                    return;
+                }
+
+                // Before doing drag we should cancel any pointer down state
+                // And clear selection!
+                if (pointerEvent.pointerPress != pointerEvent.pointerDrag)
+                {
+                    ExecuteEvents.Execute(pointerEvent.pointerPress, pointerEvent, ExecuteEvents.pointerUpHandler);
+
+                    pointerEvent.eligibleForClick = false;
+                    pointerEvent.pointerPress = null;
+                    pointerEvent.rawPointerPress = null;
+                }
+                ExecuteEvents.Execute(pointerEvent.pointerDrag, pointerEvent, ExecuteEvents.dragHandler);
+            }
+        }
+
         #endregion
 
         #region Private Methods
+
+        private bool ShouldStartDrag(UxrPointerEventData pointerEventData, float threshold)
+        {
+            if (!pointerEventData.useDragThreshold)
+                return true;
+
+            if (!IsFingerTipTouch(pointerEventData))
+            {
+                return false;
+            }
+
+            return (pointerEventData.pressPosition - pointerEventData.position).sqrMagnitude >= threshold * threshold;
+        }
 
         /// <summary>
         ///     Checks whether the given pointer event data should be ignored. Event data coming from non-UXR modules will be
@@ -857,10 +906,11 @@ namespace UltimateXR.UI.UnityInputModule
                 {
                     data.PressedThisFrame = true;
                 }
-                else if (IsFingerTipOutside(data, data.pointerEnter) && !WasFingerTipPreviousPosOutside(data, data.pointerEnter))
-                {
-                    data.ReleasedThisFrame = true;
-                }
+                //This does not work if there is a collider on the UI panel
+                //else if (IsFingerTipOutside(data, data.pointerEnter) && !WasFingerTipPreviousPosOutside(data, data.pointerEnter))
+                //{
+                //    data.ReleasedThisFrame = true;
+                //}
             }
 
             // Make sure here that UI events will get called appropriately
@@ -1038,6 +1088,11 @@ namespace UltimateXR.UI.UnityInputModule
         private bool IsFingerTipOutside(UxrPointerEventData pointerEventData, GameObject uiGameObject)
         {
             return Vector3.Dot(uiGameObject.transform.position - pointerEventData.WorldPos, uiGameObject.transform.forward) > 0.0f;
+        }
+
+        private bool IsFingerTipTouch(UxrPointerEventData pointerEventData)
+        {
+            return Vector3.Distance(pointerEventData.WorldPos, pointerEventData.pointerCurrentRaycast.worldPosition) < _fingerTipMaxDragDistance;
         }
 
         /// <summary>

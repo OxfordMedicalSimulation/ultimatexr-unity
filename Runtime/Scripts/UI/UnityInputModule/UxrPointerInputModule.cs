@@ -76,6 +76,10 @@ namespace UltimateXR.UI.UnityInputModule
         /// </summary>
         public float FingerTipMinHoverDistance => _fingerTipMinHoverDistance;
 
+        /// <summary>
+        /// If the button is pressed, you must remove your finger before pressing it again
+        public bool ButtonClicked { get; private set; } = false;
+
         #endregion
 
         #region Public Overrides BaseInputModule
@@ -519,10 +523,12 @@ namespace UltimateXR.UI.UnityInputModule
                 // TODO: Be able to control if this feature is enabled via an inspector parameter.
                 // TODO: Check compatibility with drag&drop. 
 
-                if (_uiClickOnPress && pointerEventData.pointerPress && !RequiresScrolling(pointerEventData.pointerPress))
+                if (_uiClickOnPress && pointerEventData.pointerPress && !ButtonClicked && !pointerEventData.dragging)
                 {
                     // UI element doesn't require scrolling. Perform a click on press instead of a click on release.
                     pointerEventData.eligibleForClick = false;
+                    ButtonClicked = true;
+                    ExecuteEvents.Execute(pointerEventData.pointerPress, pointerEventData, ExecuteEvents.pointerUpHandler);
                     ExecuteEvents.Execute(pointerEventData.pointerPress, pointerEventData, ExecuteEvents.pointerClickHandler);
                     pointerEventData.GameObjectClicked = pointerEventData.pointerPress;
                 }
@@ -531,13 +537,26 @@ namespace UltimateXR.UI.UnityInputModule
             // PointerUp notification
             if (pointerEventData.ReleasedThisFrame)
             {
-                ExecuteEvents.Execute(pointerEventData.pointerPress, pointerEventData, ExecuteEvents.pointerClickHandler);
+                if (!_uiClickOnPress)
+                {
+                    ExecuteEvents.Execute(pointerEventData.pointerPress, pointerEventData, ExecuteEvents.pointerClickHandler);
+                }
+                else
+                {
+                    ExecuteEvents.Execute(pointerEventData.pointerPress, pointerEventData, ExecuteEvents.pointerUpHandler);
+                }
                 pointerEventData.GameObjectClicked = pointerEventData.pointerPress;
 
                 // see if the release is on the same element that was pressed...
                 GameObject pointerUpHandler = ExecuteEvents.GetEventHandler<IPointerClickHandler>(currentOverGo);
-                
-                if (pointerEventData.pointerDrag != null)
+
+                // PointerClick and Drop events
+                if (pointerEventData.pointerPress == pointerUpHandler && pointerEventData.eligibleForClick)
+                {
+                    ExecuteEvents.Execute(pointerEventData.pointerPress, pointerEventData, ExecuteEvents.pointerClickHandler);
+                    pointerEventData.GameObjectClicked = pointerEventData.pointerPress;
+                }
+                else if (pointerEventData.pointerDrag != null)
                 {
                     ExecuteEvents.ExecuteHierarchy(currentOverGo, pointerEventData, ExecuteEvents.dropHandler);
                 }
@@ -587,9 +606,15 @@ namespace UltimateXR.UI.UnityInputModule
             // Drag notification
             if (pointerEvent.dragging)
             {
+                //Stop dragging if finger is lifted
                 if (!IsFingerTipTouch(pointerEvent))
                 {
                     pointerEvent.dragging = false;
+                    ExecuteEvents.Execute(pointerEvent.pointerDrag, pointerEvent, ExecuteEvents.endDragHandler);
+
+                    pointerEvent.eligibleForClick = false;
+                    pointerEvent.pointerPress = null;
+                    pointerEvent.rawPointerPress = null;
                     return;
                 }
 
@@ -897,6 +922,14 @@ namespace UltimateXR.UI.UnityInputModule
             data.PressedThisFrame = false;
 
             data.ReleasedThisFrame = data.pointerPress != null && !fingerTipValid;
+
+            if (ButtonClicked)
+            {
+                if (data.pointerCurrentRaycast.gameObject != null && !IsFingerTipTouch(data))
+                {
+                    ButtonClicked = false;
+                }
+            }
 
             // Check for presses/releases by comparing the finger tip current/last positions against the UI object's plane
 

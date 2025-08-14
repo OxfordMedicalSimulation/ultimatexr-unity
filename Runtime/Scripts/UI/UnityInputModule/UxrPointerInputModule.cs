@@ -464,7 +464,7 @@ namespace UltimateXR.UI.UnityInputModule
             GameObject currentOverGo = pointerEventData.pointerCurrentRaycast.gameObject;
 
             // PointerDown notification
-            if (pointerEventData.PressedThisFrame)
+            if (pointerEventData.PressedThisFrame && !ButtonClicked)
             {
                 pointerEventData.eligibleForClick    = true;
                 pointerEventData.delta               = Vector2.zero;
@@ -523,7 +523,7 @@ namespace UltimateXR.UI.UnityInputModule
                 // TODO: Be able to control if this feature is enabled via an inspector parameter.
                 // TODO: Check compatibility with drag&drop. 
 
-                if (_uiClickOnPress && pointerEventData.pointerPress && !ButtonClicked && !pointerEventData.dragging)
+                if (_uiClickOnPress && pointerEventData.pointerPress && !pointerEventData.dragging)
                 {
                     // UI element doesn't require scrolling. Perform a click on press instead of a click on release.
                     pointerEventData.eligibleForClick = false;

@@ -41,6 +41,7 @@ namespace UltimateXR.UI.UnityInputModule
         [SerializeField] protected UxrInteractionType _interactionTypeOnAutoEnable = UxrInteractionType.FingerTips;
         [SerializeField] protected float              _fingerTipMinHoverDistance   = UxrFingerTipRaycaster.FingerTipMinHoverDistanceDefault;
         [SerializeField] protected int                _dragThreshold               = 40;
+        [SerializeField] protected bool _playDefaultDragHaptics = false;
 
         #endregion
 
@@ -289,7 +290,10 @@ namespace UltimateXR.UI.UnityInputModule
             UxrControlInput.GlobalReleased += UxrControlInput_GlobalReleased;
             UxrControlInput.GlobalClicked  += UxrControlInput_GlobalClicked;
 
-            _coroutineDragHaptics = StartCoroutine(CoroutineDragHaptics());
+            if (_playDefaultDragHaptics)
+            {
+                _coroutineDragHaptics = StartCoroutine(CoroutineDragHaptics());
+            }
         }
 
         /// <summary>
@@ -303,7 +307,10 @@ namespace UltimateXR.UI.UnityInputModule
             UxrControlInput.GlobalReleased -= UxrControlInput_GlobalReleased;
             UxrControlInput.GlobalClicked  -= UxrControlInput_GlobalClicked;
 
-            StopCoroutine(_coroutineDragHaptics);
+            if (_coroutineDragHaptics != null)
+            {
+                StopCoroutine(_coroutineDragHaptics);
+            }
         }
 
         /// <summary>

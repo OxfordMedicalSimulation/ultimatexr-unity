@@ -537,13 +537,13 @@ namespace UltimateXR.UI.UnityInputModule
             // PointerUp notification
             if (pointerEventData.ReleasedThisFrame)
             {
-                if (!_uiClickOnPress)
+                if (_uiClickOnPress)
                 {
-                    ExecuteEvents.Execute(pointerEventData.pointerPress, pointerEventData, ExecuteEvents.pointerClickHandler);
+                    ExecuteEvents.Execute(pointerEventData.pointerPress, pointerEventData, ExecuteEvents.pointerUpHandler);
                 }
                 else
                 {
-                    ExecuteEvents.Execute(pointerEventData.pointerPress, pointerEventData, ExecuteEvents.pointerUpHandler);
+                    ExecuteEvents.Execute(pointerEventData.pointerPress, pointerEventData, ExecuteEvents.pointerClickHandler);
                 }
                 pointerEventData.GameObjectClicked = pointerEventData.pointerPress;
 
@@ -923,6 +923,7 @@ namespace UltimateXR.UI.UnityInputModule
 
             data.ReleasedThisFrame = data.pointerPress != null && !fingerTipValid;
 
+            //Finger removed, you can click again
             if (ButtonClicked)
             {
                 if (data.pointerCurrentRaycast.gameObject != null && !IsFingerTipTouch(data))
@@ -939,11 +940,6 @@ namespace UltimateXR.UI.UnityInputModule
                 {
                     data.PressedThisFrame = true;
                 }
-                //This does not work if there is a collider on the UI panel
-                //else if (IsFingerTipOutside(data, data.pointerEnter) && !WasFingerTipPreviousPosOutside(data, data.pointerEnter))
-                //{
-                //    data.ReleasedThisFrame = true;
-                //}
             }
 
             // Make sure here that UI events will get called appropriately

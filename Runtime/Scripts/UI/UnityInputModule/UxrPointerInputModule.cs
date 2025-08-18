@@ -610,33 +610,35 @@ namespace UltimateXR.UI.UnityInputModule
                 pointerEvent.dragging = true;
             }
 
-            // Drag notification
-            if (pointerEvent.dragging)
+            if (!pointerEvent.dragging)
             {
-                //Stop dragging if finger is lifted
-                if (!IsFingerTipTouch(pointerEvent))
-                {
-                    pointerEvent.dragging = false;
-                    ExecuteEvents.Execute(pointerEvent.pointerDrag, pointerEvent, ExecuteEvents.endDragHandler);
-
-                    pointerEvent.eligibleForClick = false;
-                    pointerEvent.pointerPress = null;
-                    pointerEvent.rawPointerPress = null;
-                    return;
-                }
-
-                // Before doing drag we should cancel any pointer down state
-                // And clear selection!
-                if (pointerEvent.pointerPress != pointerEvent.pointerDrag)
-                {
-                    ExecuteEvents.Execute(pointerEvent.pointerPress, pointerEvent, ExecuteEvents.pointerUpHandler);
-
-                    pointerEvent.eligibleForClick = false;
-                    pointerEvent.pointerPress = null;
-                    pointerEvent.rawPointerPress = null;
-                }
-                ExecuteEvents.Execute(pointerEvent.pointerDrag, pointerEvent, ExecuteEvents.dragHandler);
+                return;
             }
+
+            //Drag notification
+            //Stop dragging if finger is lifted
+            if (!IsFingerTipTouch(pointerEvent))
+            {
+                pointerEvent.dragging = false;
+                ExecuteEvents.Execute(pointerEvent.pointerDrag, pointerEvent, ExecuteEvents.endDragHandler);
+
+                pointerEvent.eligibleForClick = false;
+                pointerEvent.pointerPress = null;
+                pointerEvent.rawPointerPress = null;
+                return;
+            }
+
+            // Before doing drag we should cancel any pointer down state
+            // And clear selection!
+            if (pointerEvent.pointerPress != pointerEvent.pointerDrag)
+            {
+                ExecuteEvents.Execute(pointerEvent.pointerPress, pointerEvent, ExecuteEvents.pointerUpHandler);
+
+                pointerEvent.eligibleForClick = false;
+                pointerEvent.pointerPress = null;
+                pointerEvent.rawPointerPress = null;
+            }
+            ExecuteEvents.Execute(pointerEvent.pointerDrag, pointerEvent, ExecuteEvents.dragHandler);
         }
 
         #endregion
@@ -931,12 +933,9 @@ namespace UltimateXR.UI.UnityInputModule
             data.ReleasedThisFrame = data.pointerPress != null && !fingerTipValid;
 
             //Finger removed, you can click again
-            if (ButtonClicked)
+            if (ButtonClicked && data.pointerCurrentRaycast.gameObject != null && !IsFingerTipTouch(data))
             {
-                if (data.pointerCurrentRaycast.gameObject != null && !IsFingerTipTouch(data))
-                {
-                    ButtonClicked = false;
-                }
+                ButtonClicked = false;
             }
 
             // Check for presses/releases by comparing the finger tip current/last positions against the UI object's plane

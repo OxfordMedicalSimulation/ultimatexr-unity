@@ -41,7 +41,8 @@ namespace UltimateXR.UI.UnityInputModule
         [SerializeField] protected UxrInteractionType _interactionTypeOnAutoEnable = UxrInteractionType.FingerTips;
         [SerializeField] protected float              _fingerTipMinHoverDistance   = UxrFingerTipRaycaster.FingerTipMinHoverDistanceDefault;
         [SerializeField] protected int                _dragThreshold               = 40;
-        [SerializeField] protected bool _playDefaultDragHaptics = false;
+        [SerializeField] protected float              _fingerTipMaxDragDistance    = 0.02f;
+        [SerializeField] protected bool               _playDefaultDragHaptics      = false;
 
         #endregion
 
@@ -75,6 +76,10 @@ namespace UltimateXR.UI.UnityInputModule
         ///     <see cref="InteractionTypeOnAutoEnable" /> is <see cref="UxrInteractionType.FingerTips" />,
         /// </summary>
         public float FingerTipMinHoverDistance => _fingerTipMinHoverDistance;
+
+        /// <summary>
+        /// If the button is pressed, you must remove your finger before pressing it again
+        public bool ButtonClicked { get; private set; } = false;
 
         #endregion
 
@@ -466,7 +471,7 @@ namespace UltimateXR.UI.UnityInputModule
             GameObject currentOverGo = pointerEventData.pointerCurrentRaycast.gameObject;
 
             // PointerDown notification
-            if (pointerEventData.PressedThisFrame)
+            if (pointerEventData.PressedThisFrame && !ButtonClicked)
             {
                 pointerEventData.eligibleForClick    = true;
                 pointerEventData.delta               = Vector2.zero;
@@ -525,10 +530,12 @@ namespace UltimateXR.UI.UnityInputModule
                 // TODO: Be able to control if this feature is enabled via an inspector parameter.
                 // TODO: Check compatibility with drag&drop. 
 
-                if (_uiClickOnPress && pointerEventData.pointerPress && !RequiresScrolling(pointerEventData.pointerPress))
+                if (_uiClickOnPress && pointerEventData.pointerPress && !pointerEventData.dragging)
                 {
                     // UI element doesn't require scrolling. Perform a click on press instead of a click on release.
                     pointerEventData.eligibleForClick = false;
+                    ButtonClicked = true;
+                    ExecuteEvents.Execute(pointerEventData.pointerPress, pointerEventData, ExecuteEvents.pointerUpHandler);
                     ExecuteEvents.Execute(pointerEventData.pointerPress, pointerEventData, ExecuteEvents.pointerClickHandler);
                     pointerEventData.GameObjectClicked = pointerEventData.pointerPress;
                 }
@@ -537,7 +544,15 @@ namespace UltimateXR.UI.UnityInputModule
             // PointerUp notification
             if (pointerEventData.ReleasedThisFrame)
             {
-                ExecuteEvents.Execute(pointerEventData.pointerPress, pointerEventData, ExecuteEvents.pointerUpHandler);
+                if (_uiClickOnPress)
+                {
+                    ExecuteEvents.Execute(pointerEventData.pointerPress, pointerEventData, ExecuteEvents.pointerUpHandler);
+                }
+                else
+                {
+                    ExecuteEvents.Execute(pointerEventData.pointerPress, pointerEventData, ExecuteEvents.pointerClickHandler);
+                }
+                pointerEventData.GameObjectClicked = pointerEventData.pointerPress;
 
                 // see if the release is on the same element that was pressed...
                 GameObject pointerUpHandler = ExecuteEvents.GetEventHandler<IPointerClickHandler>(currentOverGo);
@@ -578,9 +593,70 @@ namespace UltimateXR.UI.UnityInputModule
             }
         }
 
+        /// <summary>
+        /// Process the drag for the current frame with the given pointer event.
+        /// </summary>
+        protected void ProcessDrag(UxrPointerEventData pointerEvent)
+        {
+            if (!pointerEvent.IsPointerMoving() ||
+                Cursor.lockState == CursorLockMode.Locked ||
+                pointerEvent.pointerDrag == null)
+                return;
+
+            if (!pointerEvent.dragging
+                && ShouldStartDrag(pointerEvent, eventSystem.pixelDragThreshold))
+            {
+                ExecuteEvents.Execute(pointerEvent.pointerDrag, pointerEvent, ExecuteEvents.beginDragHandler);
+                pointerEvent.dragging = true;
+            }
+
+            if (!pointerEvent.dragging)
+            {
+                return;
+            }
+
+            //Drag notification
+            //Stop dragging if finger is lifted
+            if (!IsFingerTipTouch(pointerEvent))
+            {
+                pointerEvent.dragging = false;
+                ExecuteEvents.Execute(pointerEvent.pointerDrag, pointerEvent, ExecuteEvents.endDragHandler);
+
+                pointerEvent.eligibleForClick = false;
+                pointerEvent.pointerPress = null;
+                pointerEvent.rawPointerPress = null;
+                return;
+            }
+
+            // Before doing drag we should cancel any pointer down state
+            // And clear selection!
+            if (pointerEvent.pointerPress != pointerEvent.pointerDrag)
+            {
+                ExecuteEvents.Execute(pointerEvent.pointerPress, pointerEvent, ExecuteEvents.pointerUpHandler);
+
+                pointerEvent.eligibleForClick = false;
+                pointerEvent.pointerPress = null;
+                pointerEvent.rawPointerPress = null;
+            }
+            ExecuteEvents.Execute(pointerEvent.pointerDrag, pointerEvent, ExecuteEvents.dragHandler);
+        }
+
         #endregion
 
         #region Private Methods
+
+        private bool ShouldStartDrag(UxrPointerEventData pointerEventData, float threshold)
+        {
+            if (!pointerEventData.useDragThreshold)
+                return true;
+
+            if (!IsFingerTipTouch(pointerEventData))
+            {
+                return false;
+            }
+
+            return (pointerEventData.pressPosition - pointerEventData.position).sqrMagnitude >= threshold * threshold;
+        }
 
         /// <summary>
         ///     Checks whether the given pointer event data should be ignored. Event data coming from non-UXR modules will be
@@ -856,6 +932,12 @@ namespace UltimateXR.UI.UnityInputModule
 
             data.ReleasedThisFrame = data.pointerPress != null && !fingerTipValid;
 
+            //Finger removed, you can click again
+            if (ButtonClicked && data.pointerCurrentRaycast.gameObject != null && !IsFingerTipTouch(data))
+            {
+                ButtonClicked = false;
+            }
+
             // Check for presses/releases by comparing the finger tip current/last positions against the UI object's plane
 
             if (data.pointerEnter && fingerTipValid)
@@ -863,10 +945,6 @@ namespace UltimateXR.UI.UnityInputModule
                 if (!IsFingerTipOutside(data, data.pointerEnter) && WasFingerTipPreviousPosOutside(data, data.pointerEnter))
                 {
                     data.PressedThisFrame = true;
-                }
-                else if (IsFingerTipOutside(data, data.pointerEnter) && !WasFingerTipPreviousPosOutside(data, data.pointerEnter))
-                {
-                    data.ReleasedThisFrame = true;
                 }
             }
 
@@ -1045,6 +1123,11 @@ namespace UltimateXR.UI.UnityInputModule
         private bool IsFingerTipOutside(UxrPointerEventData pointerEventData, GameObject uiGameObject)
         {
             return Vector3.Dot(uiGameObject.transform.position - pointerEventData.WorldPos, uiGameObject.transform.forward) > 0.0f;
+        }
+
+        private bool IsFingerTipTouch(UxrPointerEventData pointerEventData)
+        {
+            return Vector3.Distance(pointerEventData.WorldPos, pointerEventData.pointerCurrentRaycast.worldPosition) < _fingerTipMaxDragDistance;
         }
 
         /// <summary>

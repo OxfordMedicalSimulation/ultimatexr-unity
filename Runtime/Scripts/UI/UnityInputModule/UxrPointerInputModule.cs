@@ -1077,6 +1077,12 @@ namespace UltimateXR.UI.UnityInputModule
                 data.ReleasedThisFrame = true;
             }
 
+            //Finger removed, you can click again
+            if (ButtonClicked && data.pointerCurrentRaycast.gameObject != null && !IsFingerTipTouch(data))
+            {
+                ButtonClicked = false;
+            }
+
             return data;
         }
 

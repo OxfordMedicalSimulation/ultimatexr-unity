@@ -598,6 +598,13 @@ namespace UltimateXR.UI.UnityInputModule
         /// </summary>
         protected void ProcessDrag(UxrPointerEventData pointerEvent)
         {
+            //Use default ProcessDrag for laser pointers
+            if (pointerEvent.LaserPointer?.IsLaserEnabled ?? false)
+            {
+                base.ProcessDrag(pointerEvent);
+                return;
+            }
+
             if (!pointerEvent.IsPointerMoving() ||
                 Cursor.lockState == CursorLockMode.Locked ||
                 pointerEvent.pointerDrag == null)

@@ -471,7 +471,8 @@ namespace UltimateXR.UI.UnityInputModule
             GameObject currentOverGo = pointerEventData.pointerCurrentRaycast.gameObject;
 
             // PointerDown notification
-            if (pointerEventData.PressedThisFrame && !ButtonClicked)
+            //if (pointerEventData.PressedThisFrame && !ButtonClicked)
+            if (pointerEventData.PressedThisFrame)
             {
                 pointerEventData.eligibleForClick    = true;
                 pointerEventData.delta               = Vector2.zero;
@@ -530,7 +531,8 @@ namespace UltimateXR.UI.UnityInputModule
                 // TODO: Be able to control if this feature is enabled via an inspector parameter.
                 // TODO: Check compatibility with drag&drop. 
 
-                if (_uiClickOnPress && pointerEventData.pointerPress && !pointerEventData.dragging)
+                //if (_uiClickOnPress && pointerEventData.pointerPress && !pointerEventData.dragging)
+                if (_uiClickOnPress && pointerEventData.pointerPress && !RequiresScrolling(pointerEventData.pointerPress))
                 {
                     // UI element doesn't require scrolling. Perform a click on press instead of a click on release.
                     pointerEventData.eligibleForClick = false;
@@ -543,15 +545,7 @@ namespace UltimateXR.UI.UnityInputModule
             // PointerUp notification
             if (pointerEventData.ReleasedThisFrame)
             {
-                if (_uiClickOnPress)
-                {
-                    ExecuteEvents.Execute(pointerEventData.pointerPress, pointerEventData, ExecuteEvents.pointerUpHandler);
-                }
-                else
-                {
-                    ExecuteEvents.Execute(pointerEventData.pointerPress, pointerEventData, ExecuteEvents.pointerClickHandler);
-                }
-                pointerEventData.GameObjectClicked = pointerEventData.pointerPress;
+                ExecuteEvents.Execute(pointerEventData.pointerPress, pointerEventData, ExecuteEvents.pointerUpHandler);
 
                 // see if the release is on the same element that was pressed...
                 GameObject pointerUpHandler = ExecuteEvents.GetEventHandler<IPointerClickHandler>(currentOverGo);
@@ -566,6 +560,30 @@ namespace UltimateXR.UI.UnityInputModule
                 {
                     ExecuteEvents.ExecuteHierarchy(currentOverGo, pointerEventData, ExecuteEvents.dropHandler);
                 }
+
+                //if (_uiClickOnPress)
+                //{
+                //    ExecuteEvents.Execute(pointerEventData.pointerPress, pointerEventData, ExecuteEvents.pointerUpHandler);
+                //}
+                //else
+                //{
+                //    ExecuteEvents.Execute(pointerEventData.pointerPress, pointerEventData, ExecuteEvents.pointerClickHandler);
+                //}
+                //pointerEventData.GameObjectClicked = pointerEventData.pointerPress;
+
+                //// see if the release is on the same element that was pressed...
+                //GameObject pointerUpHandler = ExecuteEvents.GetEventHandler<IPointerClickHandler>(currentOverGo);
+
+                //// PointerClick and Drop events
+                //if (pointerEventData.pointerPress == pointerUpHandler && pointerEventData.eligibleForClick)
+                //{
+                //    ExecuteEvents.Execute(pointerEventData.pointerPress, pointerEventData, ExecuteEvents.pointerClickHandler);
+                //    pointerEventData.GameObjectClicked = pointerEventData.pointerPress;
+                //}
+                //else if (pointerEventData.pointerDrag != null)
+                //{
+                //    ExecuteEvents.ExecuteHierarchy(currentOverGo, pointerEventData, ExecuteEvents.dropHandler);
+                //}
 
                 pointerEventData.eligibleForClick = false;
                 pointerEventData.pointerPress     = null;

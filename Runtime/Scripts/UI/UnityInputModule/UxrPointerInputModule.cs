@@ -535,7 +535,6 @@ namespace UltimateXR.UI.UnityInputModule
                     // UI element doesn't require scrolling. Perform a click on press instead of a click on release.
                     pointerEventData.eligibleForClick = false;
                     ButtonClicked = true;
-                    ExecuteEvents.Execute(pointerEventData.pointerPress, pointerEventData, ExecuteEvents.pointerUpHandler);
                     ExecuteEvents.Execute(pointerEventData.pointerPress, pointerEventData, ExecuteEvents.pointerClickHandler);
                     pointerEventData.GameObjectClicked = pointerEventData.pointerPress;
                 }

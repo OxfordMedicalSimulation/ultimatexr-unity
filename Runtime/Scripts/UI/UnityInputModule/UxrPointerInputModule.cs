@@ -464,11 +464,11 @@ namespace UltimateXR.UI.UnityInputModule
         protected virtual void ProcessPointerPressRelease(UxrPointerEventData pointerEventData)
         {
             //Use default ProcessDrag for laser pointers
-            if (pointerEventData.LaserPointer?.IsLaserEnabled ?? false)
-            {
-                ProcessLaserPointerPressRelease(pointerEventData);
-                return;
-            }
+            //if (pointerEventData.LaserPointer?.IsLaserEnabled ?? false)
+            //{
+            //    ProcessLaserPointerPressRelease(pointerEventData);
+            //    return;
+            //}
 
             // if (ShouldIgnoreEventData(pointerEventData))
             // {

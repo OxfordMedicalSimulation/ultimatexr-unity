@@ -463,13 +463,6 @@ namespace UltimateXR.UI.UnityInputModule
         /// <param name="pointerEventData">Pointer event data</param>
         protected virtual void ProcessPointerPressRelease(UxrPointerEventData pointerEventData)
         {
-            //Use default ProcessDrag for laser pointers
-            //if (pointerEventData.LaserPointer?.IsLaserEnabled ?? false)
-            //{
-            //    ProcessLaserPointerPressRelease(pointerEventData);
-            //    return;
-            //}
-
             // if (ShouldIgnoreEventData(pointerEventData))
             // {
             //     return;
@@ -585,123 +578,6 @@ namespace UltimateXR.UI.UnityInputModule
                 }
 
                 pointerEventData.dragging    = false;
-                pointerEventData.pointerDrag = null;
-
-                // redo pointer enter / exit to refresh state
-                // so that if we moused over something that ignored it before
-                // due to having pressed on something else
-                // it now gets it.
-                if (currentOverGo != pointerEventData.pointerEnter)
-                {
-                    HandlePointerExitAndEnter(pointerEventData, null);
-                    HandlePointerExitAndEnter(pointerEventData, currentOverGo);
-                }
-            }
-        }
-
-        private void ProcessLaserPointerPressRelease(UxrPointerEventData pointerEventData)
-        {
-            GameObject currentOverGo = pointerEventData.pointerCurrentRaycast.gameObject;
-
-            // PointerDown notification
-            if (pointerEventData.PressedThisFrame)
-            {
-                pointerEventData.eligibleForClick = true;
-                pointerEventData.delta = Vector2.zero;
-                pointerEventData.dragging = false;
-                pointerEventData.useDragThreshold = true;
-                pointerEventData.pressPosition = pointerEventData.position;
-                pointerEventData.pointerPressRaycast = pointerEventData.pointerCurrentRaycast;
-
-                DeselectIfSelectionChanged(currentOverGo, pointerEventData);
-
-                // search for the control that will receive the press
-                // if we can't find a press handler set the press
-                // handler to be what would receive a click.
-                GameObject newPressed = ExecuteEvents.ExecuteHierarchy(currentOverGo, pointerEventData, ExecuteEvents.pointerDownHandler);
-
-                // didnt find a press handler... search for a click handler
-                if (newPressed == null)
-                {
-                    newPressed = ExecuteEvents.GetEventHandler<IPointerClickHandler>(currentOverGo);
-                }
-
-                float time = Time.unscaledTime;
-
-                if (newPressed == pointerEventData.lastPress)
-                {
-                    float diffTime = time - pointerEventData.clickTime;
-
-                    if (diffTime < 0.3f)
-                    {
-                        ++pointerEventData.clickCount;
-                    }
-                    else
-                    {
-                        pointerEventData.clickCount = 1;
-                    }
-
-                    pointerEventData.clickTime = time;
-                }
-                else
-                {
-                    pointerEventData.clickCount = 1;
-                }
-
-                pointerEventData.pointerPress = newPressed;
-                pointerEventData.rawPointerPress = currentOverGo;
-                pointerEventData.clickTime = time;
-                pointerEventData.pointerDrag = ExecuteEvents.GetEventHandler<IDragHandler>(currentOverGo);
-
-                if (pointerEventData.pointerDrag != null)
-                {
-                    ExecuteEvents.Execute(pointerEventData.pointerDrag, pointerEventData, ExecuteEvents.initializePotentialDrag);
-                }
-
-                // If the UI element has scrolling, click will require press+release to support dragging.
-                // If not, it's a little more user friendly in VR to require just a press to avoid missing clicks.
-                // TODO: Be able to control if this feature is enabled via an inspector parameter.
-                // TODO: Check compatibility with drag&drop. 
-
-                if (_uiClickOnPress && pointerEventData.pointerPress && !RequiresScrolling(pointerEventData.pointerPress))
-                {
-                    // UI element doesn't require scrolling. Perform a click on press instead of a click on release.
-                    pointerEventData.eligibleForClick = false;
-                    ExecuteEvents.Execute(pointerEventData.pointerPress, pointerEventData, ExecuteEvents.pointerClickHandler);
-                    pointerEventData.GameObjectClicked = pointerEventData.pointerPress;
-                }
-            }
-
-            // PointerUp notification
-            if (pointerEventData.ReleasedThisFrame)
-            {
-                ExecuteEvents.Execute(pointerEventData.pointerPress, pointerEventData, ExecuteEvents.pointerUpHandler);
-
-                // see if the release is on the same element that was pressed...
-                GameObject pointerUpHandler = ExecuteEvents.GetEventHandler<IPointerClickHandler>(currentOverGo);
-
-                // PointerClick and Drop events
-                if (pointerEventData.pointerPress == pointerUpHandler && pointerEventData.eligibleForClick)
-                {
-                    ExecuteEvents.Execute(pointerEventData.pointerPress, pointerEventData, ExecuteEvents.pointerClickHandler);
-                    pointerEventData.GameObjectClicked = pointerEventData.pointerPress;
-                }
-                else if (pointerEventData.pointerDrag != null)
-                {
-                    ExecuteEvents.ExecuteHierarchy(currentOverGo, pointerEventData, ExecuteEvents.dropHandler);
-                }
-
-                pointerEventData.eligibleForClick = false;
-                pointerEventData.pointerPress = null;
-                pointerEventData.rawPointerPress = null;
-                pointerEventData.pointerClick = null;
-
-                if (pointerEventData.pointerDrag != null && pointerEventData.dragging)
-                {
-                    ExecuteEvents.Execute(pointerEventData.pointerDrag, pointerEventData, ExecuteEvents.endDragHandler);
-                }
-
-                pointerEventData.dragging = false;
                 pointerEventData.pointerDrag = null;
 
                 // redo pointer enter / exit to refresh state

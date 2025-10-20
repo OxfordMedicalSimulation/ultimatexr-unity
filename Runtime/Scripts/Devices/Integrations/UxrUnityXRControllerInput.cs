@@ -833,7 +833,7 @@ namespace UltimateXR.Devices.Integrations
                 if (inputDevice.TryGetFeatureValue(CommonUsages.trigger, out float valueFloat))
                 {
                     // We try getting the float value first because in analog buttons like the oculus it will trigger too early with the bool version.
-                    return valueFloat > AnalogAsDPadThreshold;
+                    return valueFloat > ButtonPressThreshold;
                 }
 
                 if (inputDevice.TryGetFeatureValue(CommonUsages.triggerButton, out bool value))

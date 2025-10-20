@@ -1496,6 +1496,11 @@ namespace UltimateXR.Devices
         ///     Minimum axis value required to consider an analog input as a DPad digital press in any direction.
         /// </summary>
         protected const float AnalogAsDPadThreshold = 0.2f;
+        
+        /// <summary>
+        ///     Minimum button press pressure required on trigger to act as a button 
+        /// </summary>
+        protected const float ButtonPressThreshold = 0.5f;
 
         /// <summary>
         ///     Default haptic amplitude if not specified

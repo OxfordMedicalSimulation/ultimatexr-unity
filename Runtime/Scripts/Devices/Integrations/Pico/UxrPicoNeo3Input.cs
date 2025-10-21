@@ -15,6 +15,12 @@ namespace UltimateXR.Devices.Integrations.Pico
     {
         #region Public Overrides UxrControllerInput
 
+        protected override void Awake()
+        {
+            base.Awake();
+            ButtonPressThreshold = 0.71f;
+        }
+
         /// <summary>
         ///     Gets the SDK dependency: PicoXR.
         /// </summary>

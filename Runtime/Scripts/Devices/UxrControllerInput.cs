@@ -1500,7 +1500,7 @@ namespace UltimateXR.Devices
         /// <summary>
         ///     Minimum button press pressure required on trigger to act as a button 
         /// </summary>
-        protected const float ButtonPressThreshold = 0.5f;
+        protected float ButtonPressThreshold = 0.5f;
 
         /// <summary>
         ///     Default haptic amplitude if not specified

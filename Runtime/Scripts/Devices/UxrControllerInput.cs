@@ -800,7 +800,13 @@ namespace UltimateXR.Devices
         /// </summary>
         internal void EnableObjectListLeft(bool enable)
         {
-            _enableObjectListLeft?.ForEach(go => go.SetActive(enable));
+            if (_enableObjectListLeft != null)
+            {
+                foreach (var go in _enableObjectListLeft)
+                {
+                    go.SetActive(enable);
+                }
+            }
         }
 
         /// <summary>
@@ -809,7 +815,13 @@ namespace UltimateXR.Devices
         /// </summary>
         internal void EnableObjectListRight(bool enable)
         {
-            _enableObjectListRight?.ForEach(go => go.SetActive(enable));
+            if (_enableObjectListRight != null)
+            {
+                foreach (var go in _enableObjectListRight)
+                {
+                    go.SetActive(enable);
+                }
+            }
         }
 
         /// <summary>
@@ -818,7 +830,13 @@ namespace UltimateXR.Devices
         /// </summary>
         internal void EnableObjectListSingle(bool enable)
         {
-            _enableObjectList?.ForEach(go => go.SetActive(enable));
+            if (_enableObjectList != null)
+            {
+                foreach (var go in _enableObjectList)
+                {
+                    go.SetActive(enable);
+                }
+            }
         }
 
         #endregion

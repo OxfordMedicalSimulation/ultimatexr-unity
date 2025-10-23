@@ -5,7 +5,6 @@
 // --------------------------------------------------------------------------------------------------------------------
 using System.Collections;
 using System.Collections.Generic;
-using System.Linq;
 using System.Reflection;
 using UltimateXR.Avatar;
 using UltimateXR.Core;
@@ -1120,10 +1119,24 @@ namespace UltimateXR.UI.UnityInputModule
         /// <returns>Maximum drag speed in units/second</returns>
         private float GetMaxDragSpeed<T>(Dictionary<T, UxrPointerEventData> eventData, UxrHandSide handSide)
         {
-            return eventData.Where(d => d.Value.HandSide == handSide && d.Value.dragging && d.Value.Avatar.AvatarController.CanHandInteractWithUI(handSide))
-                            .Select(d => d.Value.Speed)
-                            .DefaultIfEmpty(0.0f)
-                            .Max();
+            float maxSpeed = 0.0f;
+
+            foreach (var kvp in eventData)
+            {
+                UxrPointerEventData data = kvp.Value;
+
+                if (data.HandSide == handSide &&
+                    data.dragging &&
+                    data.Avatar.AvatarController.CanHandInteractWithUI(handSide))
+                {
+                    if (data.Speed > maxSpeed)
+                    {
+                        maxSpeed = data.Speed;
+                    }
+                }
+            }
+
+            return maxSpeed;
         }
 
         /// <summary>

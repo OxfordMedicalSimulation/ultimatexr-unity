@@ -4,7 +4,6 @@
 // </copyright>
 // --------------------------------------------------------------------------------------------------------------------
 using System.Collections.Generic;
-using System.Linq;
 using UltimateXR.Avatar;
 using UltimateXR.Extensions.Unity;
 using UnityEngine;
@@ -30,12 +29,40 @@ namespace UltimateXR.Core.Components.Composite
         ///     Awake() call, which is never called if the object has never been enabled. In this case it is recommended to resort
         ///     to <see cref="UnityEngine.GameObject.GetComponentsInChildren{T}(bool)">GetComponentsInChildren</see>.
         /// </remarks>
-        public static IEnumerable<T> AllComponentsInLocalAvatar => AllComponents.Where(c => c.Avatar != null && c.Avatar.AvatarMode == UxrAvatarMode.Local);
+        public static IEnumerable<T> AllComponentsInLocalAvatar 
+        {
+            get
+            {
+                foreach (var c in AllComponents)
+                {
+                    if (c.Avatar != null && c.Avatar.AvatarMode == UxrAvatarMode.Local)
+                    {
+                        yield return c;
+                    }
+                }
+            }
+        }
 
         /// <summary>
         ///     Gets all the enabled components of this specific type that belong to the local avatar.
         /// </summary>
-        public static IEnumerable<T> EnabledComponentsInLocalAvatar => AllComponents.Where(c => c.Avatar != null && c.Avatar.AvatarMode == UxrAvatarMode.Local && c.enabled);
+        public static IEnumerable<T> EnabledComponentsInLocalAvatar
+        {
+            get
+            {
+                var result = new List<T>();
+
+                foreach (var c in AllComponents)
+                {
+                    if (c.Avatar != null && c.Avatar.AvatarMode == UxrAvatarMode.Local && c.enabled)
+                    {
+                        result.Add(c);
+                    }
+                }
+
+                return result;
+            }
+        }
 
         /// <summary>
         ///     Gets the local avatar or null if there is none.
@@ -44,8 +71,14 @@ namespace UltimateXR.Core.Components.Composite
         {
             get
             {
-                T component = AllComponents.FirstOrDefault(c => c.Avatar != null && c.Avatar.AvatarMode == UxrAvatarMode.Local);
-                return component == null ? null : component.Avatar;
+                foreach (var c in AllComponents)
+                {
+                    if (c.Avatar != null && c.Avatar.AvatarMode == UxrAvatarMode.Local)
+                    {
+                        return c.Avatar;
+                    }
+                }
+                return null;
             }
         }
 
@@ -98,11 +131,20 @@ namespace UltimateXR.Core.Components.Composite
         /// </remarks>
         public static IEnumerable<T> GetComponents(UxrAvatar avatar, bool includeDisabled = false)
         {
-            if (includeDisabled)
+            List<T> result = new List<T>();
+
+            foreach (var c in AllComponents)
             {
-                return AllComponents.Where(c => c.Avatar == avatar);
+                if (c.Avatar == avatar)
+                {
+                    if (includeDisabled || c.enabled)
+                    {
+                        result.Add(c);
+                    }
+                }
             }
-            return AllComponents.Where(c => c.Avatar == avatar && c.enabled);
+
+            return result;
         }
 
         /// <summary>
@@ -119,12 +161,23 @@ namespace UltimateXR.Core.Components.Composite
         /// </remarks>
         public static IEnumerable<TC> GetComponents<TC>(UxrAvatar avatar, bool includeDisabled = false) where TC : T
         {
-            if (includeDisabled)
+            List<TC> result = new List<TC>();
+
+            foreach (var c in AllComponents)
             {
-                return AllComponents.OfType<TC>().Where(c => c.Avatar == avatar);
+                if (c is TC component)
+                {
+                    if (component.Avatar == avatar)
+                    {
+                        if (includeDisabled || component.enabled)
+                        {
+                            result.Add(component);
+                        }
+                    }
+                }
             }
 
-            return AllComponents.OfType<TC>().Where(c => c.Avatar == avatar && c.enabled);
+            return result;
         }
 
         #endregion

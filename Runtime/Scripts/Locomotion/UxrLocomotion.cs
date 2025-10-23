@@ -4,7 +4,6 @@
 // </copyright>
 // --------------------------------------------------------------------------------------------------------------------
 using System;
-using System.Linq;
 using UltimateXR.Avatar;
 using UltimateXR.Core;
 using UltimateXR.Core.Components.Composite;
@@ -133,7 +132,7 @@ namespace UltimateXR.Locomotion
             bool hasBlockingHit = false;
             outputHit = default;
 
-            if (inputHits.Count() > 1)
+            if (inputHits.Length > 1)
             {
                 Array.Sort(inputHits, (a, b) => a.distance.CompareTo(b.distance));
             }

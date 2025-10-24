@@ -936,21 +936,27 @@ namespace UltimateXR.Avatar
         ///     Upwards prefab GUID chain. If the avatar is a prefab itself, it will be the first GUID in the list.
         /// </returns>
         /// <seealso cref="GetAvatarChain" />
+      
+        private readonly List<string> _prefabGuidChainCache = new List<string>(32);
+
         public IEnumerable<string> GetPrefabGuidChain()
-        {
+        { 
+            _prefabGuidChainCache.Clear();
+
             if (!string.IsNullOrEmpty(_prefabGuid))
             {
-                yield return _prefabGuid;
+                _prefabGuidChainCache.Add(_prefabGuid);
 
                 UxrAvatar current = ParentAvatarPrefab;
 
                 while (current != null && current != this)
                 {
-                    yield return current.PrefabGuid;
-
+                    _prefabGuidChainCache.Add(current.PrefabGuid);
                     current = current.ParentAvatarPrefab;
                 }
             }
+            
+            return _prefabGuidChainCache;
         }
 
         /// <summary>

@@ -66,8 +66,14 @@ namespace UltimateXR.Core.Components
         ///     to <see cref="GameObject.GetComponentsInChildren{T}(bool)" /> or
         ///     <see cref="UnityEngine.Object.FindObjectsOfType{T}(bool)" />.
         /// </remarks>
-        public new static IReadOnlyList<T> AllComponents => s_typeComponents;
-        
+        public new static IReadOnlyList<T> AllComponents
+        {
+            get
+            {
+                return s_typeComponents;
+            }
+        }
+
         /// <summary>
         ///     Gets all components of this specific type that are enabled, in all open scenes.
         /// </summary>

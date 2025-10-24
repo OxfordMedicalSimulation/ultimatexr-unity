@@ -7,6 +7,7 @@ using System;
 using System.Collections.Generic;
 using UltimateXR.Core.Components.Composite;
 using UnityEngine;
+using UltimateXR.Avatar;
 
 namespace UltimateXR.Core.Components
 {
@@ -54,7 +55,8 @@ namespace UltimateXR.Core.Components
         ///     Called when a component was disabled.
         /// </summary>
         public new static event Action<T> GlobalDisabled;
-
+        
+        
         /// <summary>
         ///     Gets all the components of this specific type, enabled or not, in all open scenes.
         /// </summary>
@@ -65,7 +67,7 @@ namespace UltimateXR.Core.Components
         ///     <see cref="UnityEngine.Object.FindObjectsOfType{T}(bool)" />.
         /// </remarks>
         public new static IReadOnlyList<T> AllComponents => s_typeComponents;
-
+        
         /// <summary>
         ///     Gets all components of this specific type that are enabled, in all open scenes.
         /// </summary>
@@ -130,7 +132,7 @@ namespace UltimateXR.Core.Components
             base.Awake();
 
             OnRegistering();
-            s_typeComponents.Add((T)this);
+            AddComponent();
             OnRegistered();
         }
 
@@ -142,7 +144,7 @@ namespace UltimateXR.Core.Components
             base.OnDestroy();
 
             OnUnregistering();
-            s_typeComponents.Remove((T)this);
+            RemoveComponent();
             OnUnregistered();
         }
 
@@ -221,12 +223,19 @@ namespace UltimateXR.Core.Components
         #endregion
 
         #region Private Types & Data
-
-        /// <summary>
-        ///     Static list containing all registered components of this type.
-        /// </summary>
+        
         private static readonly List<T> s_typeComponents = new List<T>();
 
+        protected virtual void AddComponent()
+        {
+            s_typeComponents.Add((T)this);
+        }
+        
+        protected virtual void RemoveComponent()
+        {
+            s_typeComponents.Remove((T)this);
+        }
+        
         #endregion
     }
 }

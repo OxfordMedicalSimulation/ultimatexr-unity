@@ -4,7 +4,6 @@
 // </copyright>
 // --------------------------------------------------------------------------------------------------------------------
 using System.Collections.Generic;
-using System.Linq;
 using UltimateXR.Avatar;
 using UltimateXR.Core.Components.Composite;
 using UnityEngine;
@@ -79,11 +78,18 @@ namespace UltimateXR.Core.Components
         /// </remarks>
         public static IEnumerable<TC> GetParentChildren(TP parent, bool includeDisabled = false)
         {
-            if (includeDisabled)
+            List<TC> results = new List<TC>();
+            foreach (TC component in AllComponents)
             {
-                return AllComponents.Where(c => c is UxrComponent<TP, TC> child && child.Parent == parent);
+                if (component is UxrComponent<TP, TC> child && child.Parent == parent)
+                {
+                    if (includeDisabled || component.isActiveAndEnabled)
+                    {
+                        results.Add(component); 
+                    }
+                }
             }
-            return AllComponents.Where(c => c.isActiveAndEnabled && c is UxrComponent<TP, TC> child && child.Parent == parent);
+            return results;
         }
 
         #endregion

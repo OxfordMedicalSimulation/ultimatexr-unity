@@ -3,6 +3,7 @@
 //   Copyright (c) VRMADA, All rights reserved.
 // </copyright>
 // --------------------------------------------------------------------------------------------------------------------
+using System;
 using System.Collections.Generic;
 using UltimateXR.Avatar;
 using UltimateXR.Extensions.Unity;
@@ -19,6 +20,85 @@ namespace UltimateXR.Core.Components.Composite
     /// <typeparam name="T">Component type</typeparam>
     public abstract class UxrAvatarComponent<T> : UxrComponent<T> where T : UxrAvatarComponent<T>
     {
+        protected override void AddComponent()
+        {
+            base.AddComponent();
+            AddAvatarComponent(this);
+        }
+
+        protected override void RemoveComponent()
+        {
+            base.RemoveComponent();
+            RemoveAvatarComponent(this);
+        }
+
+        private static void AddAvatarComponent(UxrComponent component)
+        {
+            if (component is not UxrAvatarComponent<T> avatarComponent)
+            {
+                return;
+            }
+
+            UxrAvatar avatar = avatarComponent.Avatar;
+            if (avatar == null)
+            {
+                return;
+            }
+            
+            if (!s_avatarComponents.TryGetValue(avatar, out List<T> components))
+            {
+                components = new List<T>();
+                s_avatarComponents[avatar] = components;
+            }
+                
+            T typedComponent = component as T;
+            if (typedComponent != null && !components.Contains(typedComponent))
+            {
+                components.Add(typedComponent);
+            }
+        }
+        
+        public static void RemoveAvatarComponent(UxrComponent component)
+        {
+            if (component is not UxrAvatarComponent<T> avatarComponent)
+            {
+                return;
+            }
+
+            UxrAvatar avatar = avatarComponent.Avatar;
+            if (avatar == null)
+            {
+                return;
+            }
+
+            if (s_avatarComponents.TryGetValue(avatar, out var components))
+            {
+                T typedComponent = component as T;
+                if (typedComponent != null)
+                {
+                    components.Remove(typedComponent);
+
+                    if (components.Count == 0)
+                    {
+                        s_avatarComponents.Remove(avatar);
+                    }
+                }
+            }
+        }
+        
+        public static IReadOnlyList<T> GetAvatarComponents(UxrAvatar avatar)
+        {
+            if (avatar != null && s_avatarComponents.TryGetValue(avatar, out var components))
+            {
+                return components;
+            }
+
+            return Array.Empty<T>();
+        }
+        
+        private static readonly Dictionary<UxrAvatar, List<T>> s_avatarComponents = new Dictionary<UxrAvatar, List<T>>();
+
+        
         #region Public Types & Data
 
         /// <summary>
@@ -132,21 +212,33 @@ namespace UltimateXR.Core.Components.Composite
         public static IEnumerable<T> GetComponents(UxrAvatar avatar, bool includeDisabled = false)
         {
             List<T> result = new List<T>();
-
-            foreach (var c in AllComponents)
+            
+            foreach (var component in AllComponents)
             {
-                if (c.Avatar == avatar)
+                if (component.Avatar == avatar && (includeDisabled || component.enabled))
                 {
-                    if (includeDisabled || c.enabled)
-                    {
-                        result.Add(c);
-                    }
+                    result.Add(component);
                 }
             }
 
             return result;
         }
 
+        public static IEnumerable<T> GetAllComponentsForAvatar(UxrAvatar avatar)
+        {
+            if (avatar == null)
+            {
+                return Array.Empty<T>();
+            }
+
+            if (s_avatarComponents.TryGetValue(avatar, out var components))
+            {
+                return components;
+            }
+               
+            return Array.Empty<T>();
+        }
+        
         /// <summary>
         ///     Gets the components of a specific avatar.
         /// </summary>

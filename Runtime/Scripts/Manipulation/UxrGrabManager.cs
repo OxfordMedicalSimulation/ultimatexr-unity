@@ -1271,8 +1271,13 @@ namespace UltimateXR.Manipulation
         /// <returns>Whether it is currently grabbing something</returns>
         public bool IsHandGrabbing(UxrAvatar avatar, UxrHandSide handSide)
         {
-            foreach (UxrGrabber grabber in UxrGrabber.GetComponents(avatar))
+            foreach (UxrGrabber grabber in  UxrGrabber.GetAllComponentsForAvatar(avatar))
             {
+                if (grabber.isActiveAndEnabled == false)
+                {
+                    continue;
+                }
+                
                 if (grabber.Side == handSide && grabber.GrabbedObject != null)
                 {
                     return true;

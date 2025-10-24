@@ -69,20 +69,20 @@ namespace UltimateXR.Avatar
     {
         #region Inspector Properties/Serialized Fields
 
-        [SerializeField] private string                 _prefabGuid;
-        [SerializeField] private GameObject             _parentPrefab;
-        [SerializeField] private UxrAvatarMode          _avatarMode          = UxrAvatarMode.Local;
-        [SerializeField] private UxrAvatarRenderModes   _renderMode          = UxrAvatarRenderModes.Avatar;
-        [SerializeField] private bool                   _showControllerHands = true;
-        [SerializeField] private List<Renderer>         _avatarRenderers     = new List<Renderer>();
-        [SerializeField] private UxrAvatarRigType       _rigType             = UxrAvatarRigType.HandsOnly;
-        [SerializeField] private bool                   _rigExpandedInitialized;
-        [SerializeField] private bool                   _rigFoldout       = true;
-        [SerializeField] private UxrAvatarRig           _rig              = new UxrAvatarRig();
-        [SerializeField] private UxrAvatarRigInfo       _rigInfo          = new UxrAvatarRigInfo();
-        [SerializeField] private bool                   _handPosesFoldout = true;
+        [SerializeField] private string _prefabGuid;
+        [SerializeField] private GameObject _parentPrefab;
+        [SerializeField] private UxrAvatarMode _avatarMode = UxrAvatarMode.Local;
+        [SerializeField] private UxrAvatarRenderModes _renderMode = UxrAvatarRenderModes.Avatar;
+        [SerializeField] private bool _showControllerHands = true;
+        [SerializeField] private List<Renderer> _avatarRenderers = new List<Renderer>();
+        [SerializeField] private UxrAvatarRigType _rigType = UxrAvatarRigType.HandsOnly;
+        [SerializeField] private bool _rigExpandedInitialized;
+        [SerializeField] private bool _rigFoldout = true;
+        [SerializeField] private UxrAvatarRig _rig = new UxrAvatarRig();
+        [SerializeField] private UxrAvatarRigInfo _rigInfo = new UxrAvatarRigInfo();
+        [SerializeField] private bool _handPosesFoldout = true;
         [SerializeField] private List<UxrHandPoseAsset> _handPoses;
-        [SerializeField] private UxrHandPoseAsset       _defaultHandPose;
+        [SerializeField] private UxrHandPoseAsset _defaultHandPose;
 
         #endregion
 
@@ -128,6 +128,7 @@ namespace UltimateXR.Avatar
                         return c;
                     }
                 }
+
                 return null;
             }
         }
@@ -190,11 +191,17 @@ namespace UltimateXR.Avatar
                 UxrControllerInput controllerInput = null;
 
                 // Get all controller inputs (IEnumerable)
-                IEnumerable<UxrControllerInput> inputs = UxrControllerInput.GetComponents(this);
+                //IEnumerable<UxrControllerInput> inputs = UxrControllerInput.GetComponents(this);
+                IEnumerable<UxrControllerInput> inputs = UxrControllerInput.GetAllComponentsForAvatar(this);
 
                 // First look for a controller that is not dummy nor gamepad
                 foreach (UxrControllerInput input in inputs)
                 {
+                    if (input.isActiveAndEnabled == false)
+                    {
+                        continue;
+                    }
+
                     Type type = input.GetType();
                     if (type != typeof(UxrDummyControllerInput) && type != typeof(UxrGamepadInput))
                     {
@@ -208,6 +215,11 @@ namespace UltimateXR.Avatar
                 {
                     foreach (UxrControllerInput input in inputs)
                     {
+                        if (input.isActiveAndEnabled == false)
+                        {
+                            continue;
+                        }
+
                         if (input.GetType() == typeof(UxrGamepadInput))
                         {
                             controllerInput = input;
@@ -225,7 +237,6 @@ namespace UltimateXR.Avatar
 
                 return controllerInput;
             }
-
         }
 
         /// <summary>
@@ -270,7 +281,6 @@ namespace UltimateXR.Avatar
         {
             get
             {
-
                 var allInputs = UxrControllerInput.GetComponents(this);
                 var result = new List<UxrControllerInput>();
 
@@ -284,7 +294,6 @@ namespace UltimateXR.Avatar
 
                 return result;
             }
-
         }
 
         /// <summary>
@@ -295,7 +304,7 @@ namespace UltimateXR.Avatar
         {
             get
             {
-                var allInputs = UxrControllerInput.GetComponents(this, true);
+                var allInputs = UxrControllerInput.GetAllComponentsForAvatar(this);
                 var result = new List<UxrControllerInput>();
 
                 foreach (var input in allInputs)
@@ -309,7 +318,7 @@ namespace UltimateXR.Avatar
                 return result;
             }
         }
-        
+
         /// <summary>
         ///     Returns all available enabled tracking devices.
         /// </summary>
@@ -330,9 +339,11 @@ namespace UltimateXR.Avatar
                         return tracking;
                     }
                 }
-                return null; 
+
+                return null;
             }
         }
+
         /// <summary>
         ///     Gets all the enabled <see cref="UxrFingerTip" /> components in the avatar.
         /// </summary>
@@ -444,6 +455,7 @@ namespace UltimateXR.Avatar
                             return g;
                         }
                     }
+
                     return null; // No matching grabber found
                 }
 
@@ -456,6 +468,7 @@ namespace UltimateXR.Avatar
                         return g;
                     }
                 }
+
                 return null;
             }
         }
@@ -479,8 +492,8 @@ namespace UltimateXR.Avatar
                             return g;
                         }
                     }
+
                     return null; // No matching grabber found
-                    
                 }
 #endif
                 var grabbers = UxrGrabber.GetComponents(this);
@@ -491,6 +504,7 @@ namespace UltimateXR.Avatar
                         return g;
                     }
                 }
+
                 return null;
             }
         }
@@ -526,6 +540,7 @@ namespace UltimateXR.Avatar
                 }
             }
         }
+
         /// <summary>
         ///     Gets or sets the avatar render mode.
         /// </summary>
@@ -538,11 +553,17 @@ namespace UltimateXR.Avatar
 
                 // Enable or disable avatar renderers
 
-                _avatarRenderers?.ForEach(r => r.enabled = value.HasFlag(UxrAvatarRenderModes.Avatar));
+                if (_avatarRenderers != null)
+                {
+                    bool enable = value.HasFlag(UxrAvatarRenderModes.Avatar);
+                    foreach (var renderer in _avatarRenderers)
+                    {
+                        renderer.enabled = enable;
+                    }
+                }
 
                 // Enable/disable controller 3d models (and controller hands) depending on if their input component is active
-
-                IEnumerable<UxrControllerInput> controllerInputs = UxrControllerInput.GetComponents(this, true);
+                IEnumerable<UxrControllerInput> controllerInputs = UxrControllerInput.GetAllComponentsForAvatar(this);
 
                 foreach (UxrControllerInput controllerInput in controllerInputs)
                 {
@@ -557,7 +578,7 @@ namespace UltimateXR.Avatar
                             break; // Exit early once a match is found
                         }
                     }
-                    
+
                     bool rightControllerEnabled = false;
                     foreach (var c in controllerInputs)
                     {
@@ -567,10 +588,10 @@ namespace UltimateXR.Avatar
                             break; // Exit early once a match is found
                         }
                     }
-                    
-                    bool showAvatar             = value.HasFlag(UxrAvatarRenderModes.Avatar);
-                    bool showControllerLeft     = value.HasFlag(UxrAvatarRenderModes.LeftController);
-                    bool showControllerRight    = value.HasFlag(UxrAvatarRenderModes.RightController);
+
+                    bool showAvatar = value.HasFlag(UxrAvatarRenderModes.Avatar);
+                    bool showControllerLeft = value.HasFlag(UxrAvatarRenderModes.LeftController);
+                    bool showControllerRight = value.HasFlag(UxrAvatarRenderModes.RightController);
 
                     if (controllerInput.SetupType == UxrControllerSetupType.Single)
                     {
@@ -579,7 +600,7 @@ namespace UltimateXR.Avatar
                         if (controllerInput.LeftController3DModel)
                         {
                             controllerInput.LeftController3DModel.IsControllerVisible = (leftControllerEnabled && showControllerLeft) || (rightControllerEnabled && showControllerRight);
-                            controllerInput.LeftController3DModel.IsHandVisible       = _showControllerHands;
+                            controllerInput.LeftController3DModel.IsHandVisible = _showControllerHands;
                         }
 
                         controllerInput.EnableObjectListSingle((leftControllerEnabled || rightControllerEnabled) && showAvatar);
@@ -589,13 +610,13 @@ namespace UltimateXR.Avatar
                         if (controllerInput.LeftController3DModel)
                         {
                             controllerInput.LeftController3DModel.IsControllerVisible = leftControllerEnabled && showControllerLeft;
-                            controllerInput.LeftController3DModel.IsHandVisible       = _showControllerHands;
+                            controllerInput.LeftController3DModel.IsHandVisible = _showControllerHands;
                         }
 
                         if (controllerInput.RightController3DModel)
                         {
                             controllerInput.RightController3DModel.IsControllerVisible = rightControllerEnabled && showControllerRight;
-                            controllerInput.RightController3DModel.IsHandVisible       = _showControllerHands;
+                            controllerInput.RightController3DModel.IsHandVisible = _showControllerHands;
                         }
 
                         controllerInput.EnableObjectListLeft(leftControllerEnabled && showAvatar);
@@ -772,9 +793,9 @@ namespace UltimateXR.Avatar
         {
             if (_camera && CameraController)
             {
-                Transform cameraTransform     = CameraController.transform;
-                Vector3   cameraControllerPos = cameraTransform.position;
-                cameraControllerPos.y    = transform.position.y + _startCameraControllerHeight - _startCameraHeight;
+                Transform cameraTransform = CameraController.transform;
+                Vector3 cameraControllerPos = cameraTransform.position;
+                cameraControllerPos.y = transform.position.y + _startCameraControllerHeight - _startCameraHeight;
                 cameraTransform.position = cameraControllerPos;
             }
         }
@@ -865,7 +886,7 @@ namespace UltimateXR.Avatar
         {
             SkinnedMeshRenderer[] skins = GetComponentsInChildren<SkinnedMeshRenderer>(true);
             List<SkinnedMeshRenderer> results = new List<SkinnedMeshRenderer>();
-            
+
             for (int i = 0; i < skins.Length; i++)
             {
                 if (skins[i].SafeGetComponentInParent<UxrHandIntegration>() == null)
@@ -873,7 +894,7 @@ namespace UltimateXR.Avatar
                     results.Add(skins[i]);
                 }
             }
-            
+
             return results;
         }
 
@@ -955,8 +976,8 @@ namespace UltimateXR.Avatar
         /// <param name="handPoseAsset">Hand pose to look for</param>
         /// <returns>Parent prefab that stores the given hand pose or null if the pose was not found</returns>
         public UxrAvatar GetParentPrefab(UxrHandPoseAsset handPoseAsset)
-        {            
-            foreach (UxrAvatar avatar in GetParentPrefabChain()) 
+        {
+            foreach (UxrAvatar avatar in GetParentPrefabChain())
             {
                 if (avatar._handPoses.Contains(handPoseAsset))
                 {
@@ -974,7 +995,7 @@ namespace UltimateXR.Avatar
         /// <returns>Parent prefab that stores the given hand pose or null if the pose was not found</returns>
         public UxrAvatar GetParentPrefab(string poseName)
         {
-            foreach (UxrAvatar avatar in GetParentPrefabChain()) 
+            foreach (UxrAvatar avatar in GetParentPrefabChain())
             {
                 foreach (UxrHandPoseAsset pose in avatar._handPoses)
                 {
@@ -984,6 +1005,7 @@ namespace UltimateXR.Avatar
                     }
                 }
             }
+
             return null;
         }
 
@@ -1049,7 +1071,7 @@ namespace UltimateXR.Avatar
             validPoses.Sort((a, b) => string.Compare(a.name, b.name, StringComparison.Ordinal));
             return validPoses;
         }
-        
+
         /// <summary>
         /// 
         ///     Gets a given hand pose. It can happen that the pose name is present in a prefab/instance and at the same time also
@@ -1132,7 +1154,7 @@ namespace UltimateXR.Avatar
             {
                 foreach (var pose in avatar.GetHandPoses())
                 {
-                    if (pose == handPoseAsset) 
+                    if (pose == handPoseAsset)
                     {
                         // Found pose itself
                         return false;
@@ -1221,7 +1243,7 @@ namespace UltimateXR.Avatar
                 return false;
             }
 
-            HandState                        handState                = handSide == UxrHandSide.Left ? _leftHandState : _rightHandState;
+            HandState handState = handSide == UxrHandSide.Left ? _leftHandState : _rightHandState;
             UxrAvatarHandPoseChangeEventArgs avatarHandPoseChangeArgs = new UxrAvatarHandPoseChangeEventArgs(this, handSide, poseName, blendValue);
 
             if (!handState.IsChange(avatarHandPoseChangeArgs))
@@ -1255,7 +1277,7 @@ namespace UltimateXR.Avatar
         /// </param>
         public void SetCurrentHandPoseBlendValue(UxrHandSide handSide, float blendValue, bool propagateEvents = true)
         {
-            HandState                        handState                = handSide == UxrHandSide.Left ? _leftHandState : _rightHandState;
+            HandState handState = handSide == UxrHandSide.Left ? _leftHandState : _rightHandState;
             UxrAvatarHandPoseChangeEventArgs avatarHandPoseChangeArgs = new UxrAvatarHandPoseChangeEventArgs(this, handSide, handState.CurrentHandPoseName, blendValue);
 
             if (!handState.IsChange(avatarHandPoseChangeArgs))
@@ -1318,9 +1340,9 @@ namespace UltimateXR.Avatar
         public void SetCurrentHandPoseImmediately(UxrHandSide handSide, UxrHandPoseAsset handPoseAsset, UxrBlendPoseType blendPoseType = UxrBlendPoseType.None)
         {
             UxrAvatarRig.UpdateHandUsingDescriptor(GetHand(handSide),
-                                                   handPoseAsset.GetHandDescriptor(handSide, handPoseAsset.PoseType, blendPoseType),
-                                                   AvatarRigInfo.GetArmInfo(handSide).HandUniversalLocalAxes,
-                                                   AvatarRigInfo.GetArmInfo(handSide).FingerUniversalLocalAxes);
+                handPoseAsset.GetHandDescriptor(handSide, handPoseAsset.PoseType, blendPoseType),
+                AvatarRigInfo.GetArmInfo(handSide).HandUniversalLocalAxes,
+                AvatarRigInfo.GetArmInfo(handSide).FingerUniversalLocalAxes);
         }
 
         #endregion
@@ -1360,7 +1382,7 @@ namespace UltimateXR.Avatar
             UxrManager.Instance.Poke();
 
             AvatarController = GetComponent<UxrAvatarController>();
-            _camera          = GetComponentInChildren<Camera>();
+            _camera = GetComponentInChildren<Camera>();
 
             // Find Camera controller
             if (_camera != null)
@@ -1431,12 +1453,12 @@ namespace UltimateXR.Avatar
 
             // Subscribe to device events
 
-            foreach (UxrTrackingDevice tracking in UxrTrackingDevice.GetComponents(this, true))
+            foreach (UxrTrackingDevice tracking in UxrTrackingDevice.GetAllComponentsForAvatar(this))
             {
                 tracking.DeviceConnected += Tracking_DeviceConnected;
             }
 
-            foreach (UxrControllerInput controllerInput in UxrControllerInput.GetComponents(this, true))
+            foreach (UxrControllerInput controllerInput in UxrControllerInput.GetAllComponentsForAvatar(this))
             {
                 controllerInput.DeviceConnected += ControllerInput_DeviceConnected;
             }
@@ -1444,7 +1466,7 @@ namespace UltimateXR.Avatar
             // Cache hand poses by name
 
             CreateHandPoseCache();
-            
+
 #if ULTIMATEXR_UNITY_XR_MANAGEMENT
 
             // New Unity XR requires TrackedPoseDriver component in cameras
@@ -1456,19 +1478,19 @@ namespace UltimateXR.Avatar
                 foreach (Camera camera in avatarCameras)
                 {
                     bool hasInputSystemPoseDriver = false;
-            
+
 #if ULTIMATEXR_USE_UNITYINPUTSYSTEM_SDK
                     hasInputSystemPoseDriver = camera.GetComponent<UnityEngine.InputSystem.XR.TrackedPoseDriver>() != null;
 #endif
                     TrackedPoseDriver trackedPoseDriver = camera.GetComponent<TrackedPoseDriver>();
-                    
+
                     if (trackedPoseDriver == null && !hasInputSystemPoseDriver)
                     {
                         trackedPoseDriver = camera.gameObject.AddComponent<TrackedPoseDriver>();
 
                         trackedPoseDriver.SetPoseSource(TrackedPoseDriver.DeviceType.GenericXRDevice, TrackedPoseDriver.TrackedPose.Center);
                         trackedPoseDriver.trackingType = TrackedPoseDriver.TrackingType.RotationAndPosition;
-                        trackedPoseDriver.updateType   = TrackedPoseDriver.UpdateType.UpdateAndBeforeRender;
+                        trackedPoseDriver.updateType = TrackedPoseDriver.UpdateType.UpdateAndBeforeRender;
                     }
                 }
             }
@@ -1481,7 +1503,7 @@ namespace UltimateXR.Avatar
         /// </summary>
         protected override void Reset()
         {
-            _rig     = new UxrAvatarRig();
+            _rig = new UxrAvatarRig();
             _rigInfo = new UxrAvatarRigInfo();
         }
 
@@ -1647,14 +1669,14 @@ namespace UltimateXR.Avatar
 
         #region Private Types & Data
 
-        private readonly HandState _leftHandState  = new HandState();
+        private readonly HandState _leftHandState = new HandState();
         private readonly HandState _rightHandState = new HandState();
 
-        private float                                  _startCameraHeight;
-        private float                                  _startCameraControllerHeight;
-        private Camera                                 _camera;
-        private Dictionary<Transform, Quaternion>      _initialBoneLocalRotations = new Dictionary<Transform, Quaternion>();
-        private Dictionary<Transform, Vector3>         _initialBoneLocalPositions = new Dictionary<Transform, Vector3>();
+        private float _startCameraHeight;
+        private float _startCameraControllerHeight;
+        private Camera _camera;
+        private Dictionary<Transform, Quaternion> _initialBoneLocalRotations = new Dictionary<Transform, Quaternion>();
+        private Dictionary<Transform, Vector3> _initialBoneLocalPositions = new Dictionary<Transform, Vector3>();
         private Dictionary<string, UxrRuntimeHandPose> _cachedRuntimeHandPoses;
 
         #endregion

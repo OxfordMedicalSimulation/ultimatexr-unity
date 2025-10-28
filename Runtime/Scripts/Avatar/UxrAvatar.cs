@@ -6,6 +6,8 @@
 
 using System;
 using System.Collections.Generic;
+using System.Linq;
+using System.Runtime.CompilerServices;
 using UltimateXR.Avatar.Controllers;
 using UltimateXR.Avatar.Rig;
 using UltimateXR.CameraUtils;
@@ -555,23 +557,25 @@ namespace UltimateXR.Avatar
 
                 if (_avatarRenderers != null)
                 {
-                    bool enable = value.HasFlag(UxrAvatarRenderModes.Avatar);
-                    foreach (var renderer in _avatarRenderers)
+                    bool enable = HasFlagUnsafe(value,UxrAvatarRenderModes.Avatar);
+                    foreach (var r in _avatarRenderers)
                     {
-                        renderer.enabled = enable;
+                        r.enabled = enable;
                     }
                 }
 
                 // Enable/disable controller 3d models (and controller hands) depending on if their input component is active
-                IEnumerable<UxrControllerInput> controllerInputs = UxrControllerInput.GetAllComponentsForAvatar(this);
+                IList<UxrControllerInput> controllerInputs = (IList<UxrControllerInput>)UxrControllerInput.GetAllComponentsForAvatar(this);
 
-                foreach (UxrControllerInput controllerInput in controllerInputs)
+                for (var i = 0; i < controllerInputs.Count; i++)
                 {
+                    var controllerInput = controllerInputs[i];
                     // Here we do some additional checks in case two components reference the same 3D model(s):
 
                     bool leftControllerEnabled = false;
-                    foreach (var c in controllerInputs)
+                    for (var ii = 0; ii < controllerInputs.Count; ii++)
                     {
+                        var c = controllerInputs[ii];
                         if (c.LeftController3DModel == controllerInput.LeftController3DModel && c.enabled)
                         {
                             leftControllerEnabled = true;
@@ -580,8 +584,9 @@ namespace UltimateXR.Avatar
                     }
 
                     bool rightControllerEnabled = false;
-                    foreach (var c in controllerInputs)
+                    for (var ii = 0; ii < controllerInputs.Count; ii++)
                     {
+                        var c = controllerInputs[ii];
                         if (c.RightController3DModel == controllerInput.RightController3DModel && c.enabled)
                         {
                             rightControllerEnabled = true;
@@ -589,9 +594,10 @@ namespace UltimateXR.Avatar
                         }
                     }
 
-                    bool showAvatar = value.HasFlag(UxrAvatarRenderModes.Avatar);
-                    bool showControllerLeft = value.HasFlag(UxrAvatarRenderModes.LeftController);
-                    bool showControllerRight = value.HasFlag(UxrAvatarRenderModes.RightController);
+
+                    bool showAvatar = HasFlagUnsafe(value, UxrAvatarRenderModes.Avatar);
+                    bool showControllerLeft = HasFlagUnsafe(value, UxrAvatarRenderModes.LeftController);
+                    bool showControllerRight = HasFlagUnsafe(value, UxrAvatarRenderModes.RightController);
 
                     if (controllerInput.SetupType == UxrControllerSetupType.Single)
                     {
@@ -599,23 +605,28 @@ namespace UltimateXR.Avatar
 
                         if (controllerInput.LeftController3DModel)
                         {
-                            controllerInput.LeftController3DModel.IsControllerVisible = (leftControllerEnabled && showControllerLeft) || (rightControllerEnabled && showControllerRight);
+                            controllerInput.LeftController3DModel.IsControllerVisible =
+                                (leftControllerEnabled && showControllerLeft) ||
+                                (rightControllerEnabled && showControllerRight);
                             controllerInput.LeftController3DModel.IsHandVisible = _showControllerHands;
                         }
 
-                        controllerInput.EnableObjectListSingle((leftControllerEnabled || rightControllerEnabled) && showAvatar);
+                        controllerInput.EnableObjectListSingle((leftControllerEnabled || rightControllerEnabled) &&
+                                                               showAvatar);
                     }
                     else if (controllerInput.SetupType == UxrControllerSetupType.Dual)
                     {
                         if (controllerInput.LeftController3DModel)
                         {
-                            controllerInput.LeftController3DModel.IsControllerVisible = leftControllerEnabled && showControllerLeft;
+                            controllerInput.LeftController3DModel.IsControllerVisible =
+                                leftControllerEnabled && showControllerLeft;
                             controllerInput.LeftController3DModel.IsHandVisible = _showControllerHands;
                         }
 
                         if (controllerInput.RightController3DModel)
                         {
-                            controllerInput.RightController3DModel.IsControllerVisible = rightControllerEnabled && showControllerRight;
+                            controllerInput.RightController3DModel.IsControllerVisible =
+                                rightControllerEnabled && showControllerRight;
                             controllerInput.RightController3DModel.IsHandVisible = _showControllerHands;
                         }
 
@@ -623,6 +634,15 @@ namespace UltimateXR.Avatar
                         controllerInput.EnableObjectListRight(rightControllerEnabled && showAvatar);
                     }
                 }
+            }
+        }
+        
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static bool HasFlagUnsafe<TEnum>(TEnum lhs, TEnum rhs) where TEnum : unmanaged, Enum
+        {
+            unsafe
+            {
+                return (*(ulong*)(&lhs) & *(ulong*)(&rhs)) > 0;
             }
         }
 

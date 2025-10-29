@@ -285,20 +285,23 @@ namespace UltimateXR.Avatar
         {
             get
             {
-                var allInputs = UxrControllerInput.GetComponents(this);
-                var result = new List<UxrControllerInput>();
-
-                foreach (var input in allInputs)
+                IList<UxrControllerInput> allInputs = (IList<UxrControllerInput>)UxrControllerInput.GetComponents(this);
+                //var result = new List<UxrControllerInput>();
+                _enabledControllerInputsList.Clear();
+                for (var i = 0; i < allInputs.Count; i++)
                 {
+                    var input = allInputs[i];
                     if (input.GetType() != typeof(UxrDummyControllerInput))
                     {
-                        result.Add(input);
+                        _enabledControllerInputsList.Add(input);
                     }
                 }
 
-                return result;
+                return _enabledControllerInputsList;
             }
         }
+        List<UxrControllerInput> _enabledControllerInputsList = new List<UxrControllerInput>();
+        
 
         /// <summary>
         ///     Gets all (enabled or disabled) controller inputs belonging to the avatar, except for any
@@ -464,9 +467,10 @@ namespace UltimateXR.Avatar
                 }
 
 #endif
-                var grabbers = UxrGrabber.GetComponents(this);
-                foreach (var g in grabbers)
+                IList<UxrGrabber> grabbers = (IList<UxrGrabber>)UxrGrabber.GetComponents(this);
+                for (var i = 0; i < grabbers.Count; i++)
                 {
+                    var g = grabbers[i];
                     if (g.Side == UxrHandSide.Left)
                     {
                         return g;
@@ -489,8 +493,9 @@ namespace UltimateXR.Avatar
                 if (Application.isEditor && !Application.isPlaying)
                 {
                     var grabbersEditor = GetComponentsInChildren<UxrGrabber>();
-                    foreach (var g in grabbersEditor)
+                    for (var i = 0; i < grabbersEditor.Length; i++)
                     {
+                        var g = grabbersEditor[i];
                         if (g.Side == UxrHandSide.Right)
                         {
                             return g;
@@ -500,9 +505,10 @@ namespace UltimateXR.Avatar
                     return null; // No matching grabber found
                 }
 #endif
-                var grabbers = UxrGrabber.GetComponents(this);
-                foreach (var g in grabbers)
+                IList<UxrGrabber> grabbers = (IList<UxrGrabber>)UxrGrabber.GetComponents(this);
+                for (var i = 0; i < grabbers.Count; i++)
                 {
+                    var g = grabbers[i];
                     if (g.Side == UxrHandSide.Right)
                     {
                         return g;

@@ -924,7 +924,22 @@ namespace UltimateXR.Locomotion
         /// <summary>
         ///     Gets whether other teleport component is currently teleporting the avatar.
         /// </summary>
-        protected bool IsOtherComponentTeleporting => _otherAvatarTeleports != null && _otherAvatarTeleports.Any(otherTeleport => otherTeleport.IsTeleporting);
+        protected bool IsOtherComponentTeleporting
+        {
+            get
+            {
+                bool any = false;
+                foreach (var otherTeleport in _otherAvatarTeleports)
+                {
+                    if (!otherTeleport.IsTeleporting) continue;
+                    any = true;
+                    break;
+                }
+
+                return _otherAvatarTeleports != null &&
+                       any;
+            }
+        }
 
         /// <summary>
         ///     Gets whether the component is currently allowed to teleport the avatar.

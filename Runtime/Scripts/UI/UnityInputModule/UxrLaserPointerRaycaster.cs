@@ -3,7 +3,10 @@
 //   Copyright (c) VRMADA, All rights reserved.
 // </copyright>
 // --------------------------------------------------------------------------------------------------------------------
+
+using System;
 using System.Collections.Generic;
+using System.Runtime.CompilerServices;
 using UltimateXR.Core;
 using UnityEngine;
 using UnityEngine.EventSystems;
@@ -87,6 +90,15 @@ namespace UltimateXR.UI.UnityInputModule
         #endregion
 
         #region Private Methods
+        
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        static bool HasFlagUnsafe<TEnum>(TEnum lhs, TEnum rhs) where TEnum : unmanaged, Enum
+        {
+            unsafe
+            {
+                return (*(ulong*)(&lhs) & *(ulong*)(&rhs)) > 0;
+            }
+        }
 
         /// <summary>
         ///     Performs a raycast to check which elements in a canvas were potentially interacted with.
@@ -122,7 +134,7 @@ namespace UltimateXR.UI.UnityInputModule
                                     Mathf.Max(rectTransformCanvas.localScale.x, rectTransformCanvas.localScale.y, rectTransformCanvas.localScale.z) *
                                     Mathf.Max(rectTransformCanvas.rect.width,   rectTransformCanvas.rect.height);
 
-                bool blocking3D = laserPointer != null ? laserPointer.TargetTypes.HasFlag(UxrLaserPointerTargetTypes.Colliders3D) : blockingObjects.HasFlag(BlockingObjects.ThreeD);
+                bool blocking3D = laserPointer != null ? HasFlagUnsafe(laserPointer.TargetTypes, UxrLaserPointerTargetTypes.Colliders3D) : HasFlagUnsafe(blockingObjects ,BlockingObjects.ThreeD);
 
                 if (blocking3D)
                 {
@@ -140,7 +152,7 @@ namespace UltimateXR.UI.UnityInputModule
                     }
                 }
 
-                bool blocking2D = laserPointer != null ? laserPointer.TargetTypes.HasFlag(UxrLaserPointerTargetTypes.Colliders2D) : blockingObjects.HasFlag(BlockingObjects.TwoD);
+                bool blocking2D = laserPointer != null ? HasFlagUnsafe(laserPointer.TargetTypes, UxrLaserPointerTargetTypes.Colliders2D) : HasFlagUnsafe(blockingObjects ,BlockingObjects.TwoD);
 
                 if (blocking2D)
                 {
@@ -176,7 +188,7 @@ namespace UltimateXR.UI.UnityInputModule
 
             // Iterate over all canvas graphics
 
-            bool processUI = laserPointer == null || laserPointer.TargetTypes.HasFlag(UxrLaserPointerTargetTypes.UI);
+            bool processUI = laserPointer == null || HasFlagUnsafe(laserPointer.TargetTypes, UxrLaserPointerTargetTypes.UI);
 
             if (processUI)
             {
@@ -229,9 +241,11 @@ namespace UltimateXR.UI.UnityInputModule
                 }
             }
 
-            results.Sort(CompareDepth);
+            results.Sort(CompareByDepth);
             resultAppendList.AddRange(results);
         }
+        
+        private static readonly Comparison<RaycastResult> CompareByDepth = CompareDepth;
 
         #endregion
 

@@ -80,6 +80,9 @@ namespace UltimateXR.UI.UnityInputModule
         /// If the button is pressed, you must remove your finger before pressing it again
         public bool ButtonClicked { get; private set; } = false;
 
+
+        private MethodInfo changeEventModuleMethod;
+
         #endregion
 
         #region Public Overrides BaseInputModule
@@ -91,12 +94,19 @@ namespace UltimateXR.UI.UnityInputModule
         /// <remarks>From user Cind13 in https://forum.unity.com/threads/multiple-processing-inputmodules.369578/</remarks>
         public override void UpdateModule()
         {
-            MethodInfo changeEventModuleMethod = EventSystem.current.GetType().GetMethod("ChangeEventModule",
-                                                                                         BindingFlags.NonPublic | BindingFlags.Instance,
-                                                                                         null,
-                                                                                         new[] { typeof(BaseInputModule) },
-                                                                                         null);
-            changeEventModuleMethod.Invoke(EventSystem.current, new object[] { this });
+
+            if (changeEventModuleMethod == null)
+            {
+                changeEventModuleMethod = EventSystem.current.GetType().GetMethod("ChangeEventModule",
+                    BindingFlags.NonPublic | BindingFlags.Instance,
+                    null,
+                    new[] { typeof(BaseInputModule) },
+                    null);
+            }
+
+            if (changeEventModuleMethod != null)
+                changeEventModuleMethod.Invoke(EventSystem.current, new object[] { this });
+            
             EventSystem.current.UpdateModules();
             List<BaseInputModule> activeInputModules = GetInputModules();
             activeInputModules.Remove(this);
@@ -117,8 +127,10 @@ namespace UltimateXR.UI.UnityInputModule
 
             if (!_disableOtherInputModules)
             {
-                foreach (BaseInputModule module in GetInputModules())
+                var list = GetInputModules();
+                for (var i = 0; i < list.Count; i++)
                 {
+                    var module = list[i];
                     if (module != this)
                     {
                         module.Process();
@@ -135,13 +147,16 @@ namespace UltimateXR.UI.UnityInputModule
 
             bool usedEvent = SendUpdateEventToSelectedObject();
 
-            foreach (UxrFingerTip fingerTip in UxrFingerTip.EnabledComponentsInLocalAvatar)
+            IList<UxrFingerTip> fingerTips = (IList<UxrFingerTip>)UxrFingerTip.EnabledComponentsInLocalAvatar;
+            for (var i = 0; i < fingerTips.Count; i++)
             {
-                ProcessPointerEvents(GetFingerTipPointerEventData(fingerTip));
+                ProcessPointerEvents(GetFingerTipPointerEventData(fingerTips[i]));
             }
 
-            foreach (UxrLaserPointer laserPointer in UxrLaserPointer.EnabledComponentsInLocalAvatar)
+            IList<UxrLaserPointer> laserPointers = (IList<UxrLaserPointer>)UxrLaserPointer.EnabledComponentsInLocalAvatar;
+            for (var i = 0; i < laserPointers.Count; i++)
             {
+                var laserPointer = laserPointers[i];
                 if (laserPointer.IsLaserEnabled && laserPointer.Avatar.AvatarMode == UxrAvatarMode.Local)
                 {
                     ProcessPointerEvents(GetLaserPointerEventData(laserPointer));
@@ -149,8 +164,8 @@ namespace UltimateXR.UI.UnityInputModule
             }
 
             /*
-             TODO: Create navigation events using controller input? 
-             
+             TODO: Create navigation events using controller input?
+
             if (eventSystem.sendNavigationEvents)
             {
                 if (!usedEvent)

@@ -123,8 +123,9 @@ namespace UltimateXR.Avatar
         {
             get
             {
-                foreach (var c in AllComponents)
+                for (var i = 0; i < AllComponents.Count; i++)
                 {
+                    var c = AllComponents[i];
                     if (c.AvatarMode == UxrAvatarMode.Local)
                     {
                         return c;
@@ -194,11 +195,12 @@ namespace UltimateXR.Avatar
 
                 // Get all controller inputs (IEnumerable)
                 //IEnumerable<UxrControllerInput> inputs = UxrControllerInput.GetComponents(this);
-                IEnumerable<UxrControllerInput> inputs = UxrControllerInput.GetAllComponentsForAvatar(this);
+                IList<UxrControllerInput> inputs = (IList<UxrControllerInput>)UxrControllerInput.GetAllComponentsForAvatar(this);
 
                 // First look for a controller that is not dummy nor gamepad
-                foreach (UxrControllerInput input in inputs)
+                for (var i = 0; i < inputs.Count; i++)
                 {
+                    var input = inputs[i];
                     if (input.isActiveAndEnabled == false)
                     {
                         continue;

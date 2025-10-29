@@ -81,8 +81,9 @@ namespace UltimateXR.Core.Components
         {
             get
             {
-                foreach (T component in s_typeComponents)
+                for (var i = 0; i < s_typeComponents.Count; i++)
                 {
+                    var component = s_typeComponents[i];
                     if (component.enabled && component.gameObject.activeInHierarchy)
                     {
                         yield return component;

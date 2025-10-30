@@ -338,7 +338,14 @@ namespace UltimateXR.Manipulation
         /// <returns>Grip pose info or null if it wasn't found</returns>
         public UxrGripPoseInfo GetGripPoseInfo(string prefabGuid)
         {
-            return _avatarGripPoseEntries.FirstOrDefault(i => i.AvatarPrefabGuid == prefabGuid);
+            foreach (var entry in _avatarGripPoseEntries)
+            {
+                if (entry.AvatarPrefabGuid == prefabGuid)
+                {
+                    return entry;
+                }
+            } 
+            return null;
         }
 
         /// <summary>

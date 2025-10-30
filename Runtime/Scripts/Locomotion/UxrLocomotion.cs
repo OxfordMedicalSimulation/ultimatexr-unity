@@ -6,6 +6,7 @@
 using System;
 using UltimateXR.Avatar;
 using UltimateXR.Core;
+using System.Linq;
 using UltimateXR.Core.Components.Composite;
 using UltimateXR.Manipulation;
 using UnityEngine;

@@ -139,7 +139,7 @@ namespace UltimateXR.Locomotion
             bool hasBlockingHit = false;
             outputHit = default;
 
-            if (inputHits.Length > 1)
+            if (inputHits.Count() > 1)
             {
                 Array.Sort(inputHits, (a, b) => a.distance.CompareTo(b.distance));
             }

@@ -356,10 +356,16 @@ namespace UltimateXR.Manipulation
         /// </returns>
         public UxrGripPoseInfo GetGripPoseInfo(UxrAvatar avatar, bool usePrefabInheritance = true)
         {
-            foreach (string avatarPrefabGuid in avatar.GetPrefabGuidChain())
+            var prefabGuidChain = avatar.GetPrefabGuidChain();
+
+            for (int i = 0; i < prefabGuidChain.Count; i++)
             {
-                foreach (UxrGripPoseInfo gripPoseInfo in _avatarGripPoseEntries)
+                string avatarPrefabGuid = prefabGuidChain[i];
+
+                for (int j = 0; j < _avatarGripPoseEntries.Count; j++)
                 {
+                    UxrGripPoseInfo gripPoseInfo = _avatarGripPoseEntries[j];
+
                     if (gripPoseInfo.AvatarPrefabGuid == avatarPrefabGuid)
                     {
                         return gripPoseInfo;

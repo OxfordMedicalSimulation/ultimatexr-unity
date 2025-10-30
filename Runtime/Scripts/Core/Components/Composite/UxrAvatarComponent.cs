@@ -126,21 +126,25 @@ namespace UltimateXR.Core.Components.Composite
         /// <summary>
         ///     Gets all the enabled components of this specific type that belong to the local avatar.
         /// </summary>
+        ///
+        static List<T> enabledComponentsInLocalAvatar = new List<T>();
         public static IEnumerable<T> EnabledComponentsInLocalAvatar
         {
             get
             {
-                var result = new List<T>();
-
-                foreach (var c in AllComponents)
+                if (enabledComponentsInLocalAvatar.Count == 0)
                 {
-                    if (c.Avatar != null && c.Avatar.AvatarMode == UxrAvatarMode.Local && c.enabled)
+                    for (var i = 0; i < AllComponents.Count; i++)
                     {
-                        result.Add(c);
+                        var c = AllComponents[i];
+                        if (c.Avatar != null && c.Avatar.AvatarMode == UxrAvatarMode.Local && c.enabled)
+                        {
+                            enabledComponentsInLocalAvatar.Add(c);
+                        }
                     }
                 }
 
-                return result;
+                return enabledComponentsInLocalAvatar;
             }
         }
 
@@ -209,21 +213,23 @@ namespace UltimateXR.Core.Components.Composite
         ///     has never been enabled. In this case it is recommended to resort to
         ///     <see cref="GameObject.GetComponentsInChildren{T}(bool)" />.
         /// </remarks>
-        public static IEnumerable<T> GetComponents(UxrAvatar avatar, bool includeDisabled = false)
+        public static IList<T> GetComponents(UxrAvatar avatar, bool includeDisabled = false)
         {
-            List<T> result = new List<T>();
-            
-            foreach (var component in AllComponents)
+            _allComp.Clear();
+
+            for (var i = 0; i < AllComponents.Count; i++)
             {
+                var component = AllComponents[i];
                 if (component.Avatar == avatar && (includeDisabled || component.enabled))
                 {
-                    result.Add(component);
+                    _allComp.Add(component);
                 }
             }
-
-            return result;
+            return _allComp;
         }
 
+        private static List<T> _allComp = new List<T>();
+        
         public static IEnumerable<T> GetAllComponentsForAvatar(UxrAvatar avatar)
         {
             if (avatar == null)

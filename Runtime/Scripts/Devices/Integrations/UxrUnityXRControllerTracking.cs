@@ -16,7 +16,7 @@ namespace UltimateXR.Devices.Integrations
     public abstract class UxrUnityXRControllerTracking : UxrControllerTracking
     {
         #region Protected Overrides UxrTrackingDevice
-
+        List<XRNodeState> nodeStates = new List<XRNodeState>();
         /// <inheritdoc />
         protected override void UpdateSensors()
         {
@@ -28,7 +28,7 @@ namespace UltimateXR.Devices.Integrations
                 return;
             }
 
-            List<XRNodeState> nodeStates = new List<XRNodeState>();
+            nodeStates.Clear();
             InputTracking.GetNodeStates(nodeStates);
 
             foreach (XRNodeState nodeState in nodeStates)

@@ -6,6 +6,8 @@
 
 using System;
 using System.Collections.Generic;
+using System.Linq;
+using System.Runtime.CompilerServices;
 using UltimateXR.Avatar.Controllers;
 using UltimateXR.Avatar.Rig;
 using UltimateXR.CameraUtils;
@@ -121,8 +123,9 @@ namespace UltimateXR.Avatar
         {
             get
             {
-                foreach (var c in AllComponents)
+                for (var i = 0; i < AllComponents.Count; i++)
                 {
+                    var c = AllComponents[i];
                     if (c.AvatarMode == UxrAvatarMode.Local)
                     {
                         return c;
@@ -192,11 +195,12 @@ namespace UltimateXR.Avatar
 
                 // Get all controller inputs (IEnumerable)
                 //IEnumerable<UxrControllerInput> inputs = UxrControllerInput.GetComponents(this);
-                IEnumerable<UxrControllerInput> inputs = UxrControllerInput.GetAllComponentsForAvatar(this);
+                IList<UxrControllerInput> inputs = (IList<UxrControllerInput>)UxrControllerInput.GetAllComponentsForAvatar(this);
 
                 // First look for a controller that is not dummy nor gamepad
-                foreach (UxrControllerInput input in inputs)
+                for (var i = 0; i < inputs.Count; i++)
                 {
+                    var input = inputs[i];
                     if (input.isActiveAndEnabled == false)
                     {
                         continue;
@@ -281,20 +285,23 @@ namespace UltimateXR.Avatar
         {
             get
             {
-                var allInputs = UxrControllerInput.GetComponents(this);
-                var result = new List<UxrControllerInput>();
-
-                foreach (var input in allInputs)
+                IList<UxrControllerInput> allInputs = (IList<UxrControllerInput>)UxrControllerInput.GetComponents(this);
+                //var result = new List<UxrControllerInput>();
+                _enabledControllerInputsList.Clear();
+                for (var i = 0; i < allInputs.Count; i++)
                 {
+                    var input = allInputs[i];
                     if (input.GetType() != typeof(UxrDummyControllerInput))
                     {
-                        result.Add(input);
+                        _enabledControllerInputsList.Add(input);
                     }
                 }
 
-                return result;
+                return _enabledControllerInputsList;
             }
         }
+        List<UxrControllerInput> _enabledControllerInputsList = new List<UxrControllerInput>();
+        
 
         /// <summary>
         ///     Gets all (enabled or disabled) controller inputs belonging to the avatar, except for any
@@ -460,9 +467,10 @@ namespace UltimateXR.Avatar
                 }
 
 #endif
-                var grabbers = UxrGrabber.GetComponents(this);
-                foreach (var g in grabbers)
+                IList<UxrGrabber> grabbers = (IList<UxrGrabber>)UxrGrabber.GetComponents(this);
+                for (var i = 0; i < grabbers.Count; i++)
                 {
+                    var g = grabbers[i];
                     if (g.Side == UxrHandSide.Left)
                     {
                         return g;
@@ -485,8 +493,9 @@ namespace UltimateXR.Avatar
                 if (Application.isEditor && !Application.isPlaying)
                 {
                     var grabbersEditor = GetComponentsInChildren<UxrGrabber>();
-                    foreach (var g in grabbersEditor)
+                    for (var i = 0; i < grabbersEditor.Length; i++)
                     {
+                        var g = grabbersEditor[i];
                         if (g.Side == UxrHandSide.Right)
                         {
                             return g;
@@ -496,9 +505,10 @@ namespace UltimateXR.Avatar
                     return null; // No matching grabber found
                 }
 #endif
-                var grabbers = UxrGrabber.GetComponents(this);
-                foreach (var g in grabbers)
+                IList<UxrGrabber> grabbers = (IList<UxrGrabber>)UxrGrabber.GetComponents(this);
+                for (var i = 0; i < grabbers.Count; i++)
                 {
+                    var g = grabbers[i];
                     if (g.Side == UxrHandSide.Right)
                     {
                         return g;
@@ -555,23 +565,26 @@ namespace UltimateXR.Avatar
 
                 if (_avatarRenderers != null)
                 {
-                    bool enable = value.HasFlag(UxrAvatarRenderModes.Avatar);
-                    foreach (var renderer in _avatarRenderers)
+                    bool enable = HasFlagUnsafe(value,UxrAvatarRenderModes.Avatar);
+                    for (var i = 0; i < _avatarRenderers.Count; i++)
                     {
-                        renderer.enabled = enable;
+                        var r = _avatarRenderers[i];
+                        r.enabled = enable;
                     }
                 }
 
                 // Enable/disable controller 3d models (and controller hands) depending on if their input component is active
-                IEnumerable<UxrControllerInput> controllerInputs = UxrControllerInput.GetAllComponentsForAvatar(this);
+                IList<UxrControllerInput> controllerInputs = (IList<UxrControllerInput>)UxrControllerInput.GetAllComponentsForAvatar(this);
 
-                foreach (UxrControllerInput controllerInput in controllerInputs)
+                for (var i = 0; i < controllerInputs.Count; i++)
                 {
+                    var controllerInput = controllerInputs[i];
                     // Here we do some additional checks in case two components reference the same 3D model(s):
 
                     bool leftControllerEnabled = false;
-                    foreach (var c in controllerInputs)
+                    for (var ii = 0; ii < controllerInputs.Count; ii++)
                     {
+                        var c = controllerInputs[ii];
                         if (c.LeftController3DModel == controllerInput.LeftController3DModel && c.enabled)
                         {
                             leftControllerEnabled = true;
@@ -580,8 +593,9 @@ namespace UltimateXR.Avatar
                     }
 
                     bool rightControllerEnabled = false;
-                    foreach (var c in controllerInputs)
+                    for (var ii = 0; ii < controllerInputs.Count; ii++)
                     {
+                        var c = controllerInputs[ii];
                         if (c.RightController3DModel == controllerInput.RightController3DModel && c.enabled)
                         {
                             rightControllerEnabled = true;
@@ -589,9 +603,10 @@ namespace UltimateXR.Avatar
                         }
                     }
 
-                    bool showAvatar = value.HasFlag(UxrAvatarRenderModes.Avatar);
-                    bool showControllerLeft = value.HasFlag(UxrAvatarRenderModes.LeftController);
-                    bool showControllerRight = value.HasFlag(UxrAvatarRenderModes.RightController);
+
+                    bool showAvatar = HasFlagUnsafe(value, UxrAvatarRenderModes.Avatar);
+                    bool showControllerLeft = HasFlagUnsafe(value, UxrAvatarRenderModes.LeftController);
+                    bool showControllerRight = HasFlagUnsafe(value, UxrAvatarRenderModes.RightController);
 
                     if (controllerInput.SetupType == UxrControllerSetupType.Single)
                     {
@@ -599,23 +614,28 @@ namespace UltimateXR.Avatar
 
                         if (controllerInput.LeftController3DModel)
                         {
-                            controllerInput.LeftController3DModel.IsControllerVisible = (leftControllerEnabled && showControllerLeft) || (rightControllerEnabled && showControllerRight);
+                            controllerInput.LeftController3DModel.IsControllerVisible =
+                                (leftControllerEnabled && showControllerLeft) ||
+                                (rightControllerEnabled && showControllerRight);
                             controllerInput.LeftController3DModel.IsHandVisible = _showControllerHands;
                         }
 
-                        controllerInput.EnableObjectListSingle((leftControllerEnabled || rightControllerEnabled) && showAvatar);
+                        controllerInput.EnableObjectListSingle((leftControllerEnabled || rightControllerEnabled) &&
+                                                               showAvatar);
                     }
                     else if (controllerInput.SetupType == UxrControllerSetupType.Dual)
                     {
                         if (controllerInput.LeftController3DModel)
                         {
-                            controllerInput.LeftController3DModel.IsControllerVisible = leftControllerEnabled && showControllerLeft;
+                            controllerInput.LeftController3DModel.IsControllerVisible =
+                                leftControllerEnabled && showControllerLeft;
                             controllerInput.LeftController3DModel.IsHandVisible = _showControllerHands;
                         }
 
                         if (controllerInput.RightController3DModel)
                         {
-                            controllerInput.RightController3DModel.IsControllerVisible = rightControllerEnabled && showControllerRight;
+                            controllerInput.RightController3DModel.IsControllerVisible =
+                                rightControllerEnabled && showControllerRight;
                             controllerInput.RightController3DModel.IsHandVisible = _showControllerHands;
                         }
 
@@ -623,6 +643,15 @@ namespace UltimateXR.Avatar
                         controllerInput.EnableObjectListRight(rightControllerEnabled && showAvatar);
                     }
                 }
+            }
+        }
+        
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static bool HasFlagUnsafe<TEnum>(TEnum lhs, TEnum rhs) where TEnum : unmanaged, Enum
+        {
+            unsafe
+            {
+                return (*(ulong*)(&lhs) & *(ulong*)(&rhs)) > 0;
             }
         }
 

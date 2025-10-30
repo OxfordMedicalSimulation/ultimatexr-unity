@@ -391,40 +391,41 @@ namespace UltimateXR.UI
             float t1 = Mathf.Min(rayLength * 0.33f, GradientLength);
             float t2 = Mathf.Max(rayLength * 0.66f, rayLength - GradientLength);
 
-            Vector3[] positions =
-            {
-                        new Vector3(0.0f, 0.0f, 0.0f),
-                        new Vector3(0.0f, 0.0f, t1),
-                        new Vector3(0.0f, 0.0f, t2),
-                        new Vector3(0.0f, 0.0f, rayLength)
-            };
+            _positions[0] = new Vector3(0.0f, 0.0f, 0.0f);
+            _positions[1] = new Vector3(0.0f, 0.0f, t1);
+            _positions[2] = new Vector3(0.0f, 0.0f, t2);
+            _positions[3] = new Vector3(0.0f, 0.0f, rayLength);
 
-            for (int i = 0; i < positions.Length; ++i)
+
+            for (int i = 0; i < _positions.Length; ++i)
             {
-                positions[i] = _lineRenderer.transform.InverseTransformPoint(LaserTransform.TransformPoint(positions[i]));
+                _positions[i] = _lineRenderer.transform.InverseTransformPoint(LaserTransform.TransformPoint(_positions[i]));
             }
 
-            _lineRenderer.SetPositions(positions);
+            _lineRenderer.SetPositions(_positions);
 
             Gradient colorGradient = new Gradient();
-            colorGradient.colorKeys = new[]
-                                      {
-                                                  new GradientColorKey(Color.white, 0.0f),
-                                                  new GradientColorKey(Color.white, t1 / rayLength),
-                                                  new GradientColorKey(Color.white, t2 / rayLength),
-                                                  new GradientColorKey(Color.white, 1.0f)
-                                      };
-            colorGradient.alphaKeys = new[]
-                                      {
-                                                  new GradientAlphaKey(0.0f, 0.0f),
-                                                  new GradientAlphaKey(1.0f, t1 / rayLength),
-                                                  new GradientAlphaKey(1.0f, t2 / rayLength),
-                                                  new GradientAlphaKey(0.0f, 1.0f)
-                                      };
+
+            _colorKeys[0] = new GradientColorKey(Color.white, 0.0f);
+            _colorKeys[1] = new GradientColorKey(Color.white, t1 / rayLength);
+            _colorKeys[2] = new GradientColorKey(Color.white, t2 / rayLength);
+            _colorKeys[3] = new GradientColorKey(Color.white, 1.0f);
+
+            colorGradient.colorKeys = _colorKeys;
+            
+            _alphaKeys[0] = new GradientAlphaKey(0.0f, 0.0f);
+            _alphaKeys[1] = new GradientAlphaKey(1.0f, t1 / rayLength);
+            _alphaKeys[2] = new GradientAlphaKey(1.0f, t2 / rayLength);
+            _alphaKeys[3] = new GradientAlphaKey(0.0f, 1.0f);
+            colorGradient.alphaKeys = _alphaKeys;
+            
             _lineRenderer.colorGradient = colorGradient;
 
             _lineRenderer.positionCount = 4;
         }
+        private Vector3[] _positions = new Vector3[4];
+        private GradientColorKey[] _colorKeys = new GradientColorKey[4]; 
+        private GradientAlphaKey[] _alphaKeys = new GradientAlphaKey[4]; 
 
         #endregion
 

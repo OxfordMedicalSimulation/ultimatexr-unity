@@ -91,9 +91,16 @@ namespace UltimateXR.Locomotion
         /// <returns>Whether there is a blocking raycast returned in <paramref name="outputHit" /></returns>
         protected bool HasBlockingRaycastHit(UxrAvatar avatar, Vector3 origin, Vector3 direction, float maxDistance, int layerMaskRaycast, QueryTriggerInteraction queryTriggerInteraction, out RaycastHit outputHit)
         {
-            RaycastHit[] hits = Physics.RaycastAll(origin, direction.normalized, maxDistance, layerMaskRaycast, queryTriggerInteraction);
-            return HasBlockingRaycastHit(avatar, hits, out outputHit);
+            var size = Physics.RaycastNonAlloc(origin, direction.normalized, _results, maxDistance, layerMaskRaycast, queryTriggerInteraction);
+            if( size > 0 )
+                return HasBlockingRaycastHit(avatar, _results, out outputHit);
+            else
+            {
+                outputHit = default;
+                return false;
+            }
         }
+        RaycastHit[] _results = new RaycastHit[20];
 
         /// <summary>
         ///     Checks whether a capsule cast has anything that is blocking. It filters out invalid positives such as against

@@ -292,10 +292,28 @@ namespace UltimateXR.Avatar.Controllers
             }
 
             // Update arms without clavicles to check how much tension is applied on the shoulders
+            // old linq code    
+            //IEnumerable<UxrArmIKSolver> autoUpdateArmSolvers = UxrIKSolver.GetComponents(Avatar).OfType<UxrArmIKSolver>().Where(s => s.NeedsAutoUpdate);
+            // new not linq code
+            List<UxrArmIKSolver> autoUpdateArmSolvers = new List<UxrArmIKSolver>();
+            IList<UxrIKSolver> components = (IList<UxrIKSolver>)UxrIKSolver.GetComponents(Avatar);
 
-            IEnumerable<UxrArmIKSolver> autoUpdateArmSolvers = UxrIKSolver.GetComponents(Avatar).OfType<UxrArmIKSolver>().Where(s => s.NeedsAutoUpdate);
+            // ReSharper disable once LoopCanBeConvertedToQuery
+            for (var i = 0; i < components.Count; i++)
+            {
+                var component = components[i];
+                var solver = component as UxrArmIKSolver;
+                if (solver != null && solver.NeedsAutoUpdate)
+                {
+                    autoUpdateArmSolvers.Add(solver);
+                }
+            }
 
-            autoUpdateArmSolvers.ForEach(s => s.SolveIKPass(UxrArmSolveOptions.None, UxrArmOverExtendMode.ExtendForearm));
+            for (var i = 0; i < autoUpdateArmSolvers.Count; i++)
+            {
+                var s = autoUpdateArmSolvers[i];
+                s.SolveIKPass(UxrArmSolveOptions.None, UxrArmOverExtendMode.ExtendForearm);
+            }
 
             // Update torso rotation
 
@@ -306,11 +324,24 @@ namespace UltimateXR.Avatar.Controllers
 
             // Update arms normally
 
-            autoUpdateArmSolvers.ForEach(s => s.SolveIK());
+            for (var i = 0; i < autoUpdateArmSolvers.Count; i++)
+            {
+                var s = autoUpdateArmSolvers[i];
+                s.SolveIK();
+            }
 
             // Update non-arm IKs
-
-            UxrIKSolver.GetComponents(Avatar).Where(s => s.GetType() != typeof(UxrArmIKSolver) && s.NeedsAutoUpdate).ForEach(s => s.SolveIK());
+            // old linq code
+            // UxrIKSolver.GetComponents(Avatar).Where(s => s.GetType() != typeof(UxrArmIKSolver) && s.NeedsAutoUpdate).ForEach(s => s.SolveIK());
+            // new not linq code
+            for (var i = 0; i < components.Count; i++)
+            {
+                var solver = components[i];
+                if (solver.GetType() != typeof(UxrArmIKSolver) && solver.NeedsAutoUpdate)
+                {
+                    solver.SolveIK();
+                }
+            }
         }
 
         public void SetGripPose(string poseName)

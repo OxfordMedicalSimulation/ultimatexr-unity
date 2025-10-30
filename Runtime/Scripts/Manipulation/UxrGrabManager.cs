@@ -377,8 +377,10 @@ namespace UltimateXR.Manipulation
             grabbableObject = null;
             grabPoint       = 0;
 
-            foreach (UxrGrabber grabber in UxrGrabber.GetComponents(avatar))
+            IList<UxrGrabber> grabbers = (IList<UxrGrabber>)UxrGrabber.GetComponents(avatar);
+            for (var i = 0; i < grabbers.Count; i++)
             {
+                var grabber = grabbers[i];
                 if (grabber.Side == handSide)
                 {
                     return GetClosestGrabbableObject(grabber, out grabbableObject, out grabPoint, candidates);
@@ -405,7 +407,7 @@ namespace UltimateXR.Manipulation
             grabPoint       = 0;
 
             // Iterate over objects
-
+            
             foreach (UxrGrabbableObject candidate in candidates ?? UxrGrabbableObject.EnabledComponents)
             {
                 float minDistance = float.MaxValue; // For the same object we will not just consider the distance but also how close the grabber is to the grip orientation
@@ -1271,13 +1273,15 @@ namespace UltimateXR.Manipulation
         /// <returns>Whether it is currently grabbing something</returns>
         public bool IsHandGrabbing(UxrAvatar avatar, UxrHandSide handSide)
         {
-            foreach (UxrGrabber grabber in  UxrGrabber.GetAllComponentsForAvatar(avatar))
+            IList<UxrGrabber> grabbers = (IList<UxrGrabber>)UxrGrabber.GetAllComponentsForAvatar(avatar);
+            for (var i = 0; i < grabbers.Count; i++)
             {
+                var grabber = grabbers[i];
                 if (grabber.isActiveAndEnabled == false)
                 {
                     continue;
                 }
-                
+
                 if (grabber.Side == handSide && grabber.GrabbedObject != null)
                 {
                     return true;
@@ -1822,11 +1826,15 @@ namespace UltimateXR.Manipulation
             // Look for objects that can be grabbed to update feedback objects (blinks, labels...). First pass: get closest candidate for each grabber.
             Dictionary<UxrGrabbableObject, List<int>> possibleGrabs = null;
 
-            foreach (UxrGrabber grabber in UxrGrabber.EnabledComponents)
+            IList<UxrGrabber> grabbers = (IList<UxrGrabber>)UxrGrabber.AllComponents;
+            for (var i = 0; i < grabbers.Count; i++)
             {
+                var grabber = grabbers[i];
+                if (!grabber.enabled || !grabber.gameObject.activeInHierarchy) continue;
                 if (grabber.GrabbedObject == null)
                 {
-                    if (GetClosestGrabbableObject(grabber, out UxrGrabbableObject grabbableCandidate, out int grabPointCandidate) &&
+                    if (GetClosestGrabbableObject(grabber, out UxrGrabbableObject grabbableCandidate,
+                            out int grabPointCandidate) &&
                         !IsBeingGrabbed(grabbableCandidate, grabPointCandidate))
                     {
                         if (possibleGrabs == null)
@@ -1846,9 +1854,11 @@ namespace UltimateXR.Manipulation
                 }
             }
 
+            IList<UxrGrabbableObject> grabbables = (IList<UxrGrabbableObject>)UxrGrabbableObject.AllComponents;
             // Second pass: update visual feedback objects for grabbable objects.
-            foreach (UxrGrabbableObject grabbable in UxrGrabbableObject.EnabledComponents)
+            for (var i = 0; i < grabbables.Count; i++)
             {
+                var grabbable = grabbables[i];
                 // First disable all needed, then enable them in another pass because some points may share the same object
                 for (int point = 0; point < grabbable.GrabPointCount; ++point)
                 {
@@ -1856,8 +1866,8 @@ namespace UltimateXR.Manipulation
 
                     if (enableOnHandNear)
                     {
-                        bool      enableObject = false;
-                        List<int> grabPoints   = null;
+                        bool enableObject = false;
+                        List<int> grabPoints = null;
 
                         if (possibleGrabs != null && possibleGrabs.TryGetValue(grabbable, out grabPoints))
                         {
@@ -1875,7 +1885,8 @@ namespace UltimateXR.Manipulation
 
                                 if (enableOnHandNear == enableOnHandNearOther)
                                 {
-                                    if (possibleGrabs != null && possibleGrabs.TryGetValue(grabbable, out List<int> grabPointsOther))
+                                    if (possibleGrabs != null &&
+                                        possibleGrabs.TryGetValue(grabbable, out List<int> grabPointsOther))
                                     {
                                         foundEnable = grabPoints.Contains(pointOther);
 
@@ -1904,14 +1915,15 @@ namespace UltimateXR.Manipulation
                     {
                         enableObject = grabPoints.Contains(point);
                     }
-                    
-                    UxrManipulationEventArgs hoverEventArgs = new UxrManipulationEventArgs(grabbable, null, null, point);
+
+                    UxrManipulationEventArgs hoverEventArgs =
+                        new UxrManipulationEventArgs(grabbable, null, null, point);
 
                     if (enableObject)
                         grabbable.RaiseHoverStartEvent(hoverEventArgs);
                     else
                         grabbable.RaiseHoverStopEvent(hoverEventArgs);
-                    
+
                     GameObject enableOnHandNear = grabbable.GetGrabPoint(point).EnableOnHandNear;
 
                     if (enableObject && enableOnHandNear && !enableOnHandNear.activeSelf)
@@ -1923,16 +1935,21 @@ namespace UltimateXR.Manipulation
             }
 
             // Look for empty hand being able to grab something from an anchor to update anchor visual feedback objects later and also raise events. First pass: gather info.
-            foreach (UxrGrabber grabber in UxrGrabber.EnabledComponents)
+            grabbers = (IList<UxrGrabber>)UxrGrabber.AllComponents;
+            for (var i = 0; i < grabbers.Count; i++)
             {
+                var grabber = grabbers[i];
+                if (!grabber.enabled || !grabber.gameObject.activeInHierarchy) continue;
                 if (grabber.GrabbedObject == null)
                 {
-                    UxrGrabbableObjectAnchor anchorCandidate            = null;
-                    int                      grabPointCandidate         = 0;
-                    int                      maxPriority                = int.MinValue;
-                    float                    minDistanceWithoutRotation = float.MaxValue; // Between different objects we don't take orientations into account
+                    UxrGrabbableObjectAnchor anchorCandidate = null;
+                    int grabPointCandidate = 0;
+                    int maxPriority = int.MinValue;
+                    float minDistanceWithoutRotation =
+                        float.MaxValue; // Between different objects we don't take orientations into account
 
-                    foreach (KeyValuePair<UxrGrabbableObjectAnchor, GrabbableObjectAnchorInfo> anchorPair in _grabbableObjectAnchors)
+                    foreach (KeyValuePair<UxrGrabbableObjectAnchor, GrabbableObjectAnchorInfo> anchorPair in
+                             _grabbableObjectAnchors)
                     {
                         UxrGrabbableObjectAnchor grabbableAnchor = anchorPair.Key;
 
@@ -1945,23 +1962,26 @@ namespace UltimateXR.Manipulation
                             {
                                 if (grabbableAnchor.CurrentPlacedObject.CanBeGrabbedByGrabber(grabber, point))
                                 {
-                                    grabbableAnchor.CurrentPlacedObject.GetDistanceFromGrabber(grabber, point, out float distance, out float distanceWithoutRotation);
+                                    grabbableAnchor.CurrentPlacedObject.GetDistanceFromGrabber(grabber, point,
+                                        out float distance, out float distanceWithoutRotation);
 
                                     if (grabbableAnchor.CurrentPlacedObject.Priority > maxPriority)
                                     {
-                                        anchorCandidate            = grabbableAnchor;
-                                        grabPointCandidate         = point;
-                                        minDistance                = distance;
+                                        anchorCandidate = grabbableAnchor;
+                                        grabPointCandidate = point;
+                                        minDistance = distance;
                                         minDistanceWithoutRotation = distanceWithoutRotation;
-                                        maxPriority                = grabbableAnchor.CurrentPlacedObject.Priority;
+                                        maxPriority = grabbableAnchor.CurrentPlacedObject.Priority;
                                     }
                                     else
                                     {
-                                        if ((anchorCandidate == grabbableAnchor && distance < minDistance) || (anchorCandidate != grabbableAnchor && distanceWithoutRotation < minDistanceWithoutRotation))
+                                        if ((anchorCandidate == grabbableAnchor && distance < minDistance) ||
+                                            (anchorCandidate != grabbableAnchor &&
+                                             distanceWithoutRotation < minDistanceWithoutRotation))
                                         {
-                                            anchorCandidate            = grabbableAnchor;
-                                            grabPointCandidate         = point;
-                                            minDistance                = distance;
+                                            anchorCandidate = grabbableAnchor;
+                                            grabPointCandidate = point;
+                                            minDistance = distance;
                                             minDistanceWithoutRotation = distanceWithoutRotation;
                                         }
                                     }
@@ -1972,7 +1992,7 @@ namespace UltimateXR.Manipulation
 
                     if (anchorCandidate != null)
                     {
-                        _grabbableObjectAnchors[anchorCandidate].GrabberNear   = null;
+                        _grabbableObjectAnchors[anchorCandidate].GrabberNear = null;
                         _grabbableObjectAnchors[anchorCandidate].GrabPointNear = grabPointCandidate;
                     }
                 }

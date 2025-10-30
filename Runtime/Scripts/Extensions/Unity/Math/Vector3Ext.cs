@@ -139,9 +139,14 @@ namespace UltimateXR.Extensions.Unity.Math
         /// <returns>Vector with components averaged</returns>
         public static Vector3 Average(params Vector3[] vectors)
         {
-            return new Vector3(vectors.Average(v => v.x),
-                               vectors.Average(v => v.y),
-                               vectors.Average(v => v.z));
+            float xSum = 0.0f, ySum = 0.0f, zSum = 0.0f;
+            for (int i = 0; i < vectors.Length; i++)
+            {
+                xSum += vectors[i].x;
+                ySum += vectors[i].y;
+                zSum += vectors[i].z;
+            }
+            return new Vector3(xSum / vectors.Length, ySum / vectors.Length, zSum / vectors.Length);
         }
 
         /// <summary>
@@ -151,9 +156,16 @@ namespace UltimateXR.Extensions.Unity.Math
         /// <returns>Vector with components averaged</returns>
         public static Vector3 Average(IEnumerable<Vector3> vectors)
         {
-            return new Vector3(vectors.Average(v => v.x),
-                               vectors.Average(v => v.y),
-                               vectors.Average(v => v.z));
+            float xSum = 0.0f, ySum = 0.0f, zSum = 0.0f;
+            int count = 0;
+            foreach (var vector in vectors)
+            {
+                xSum += vector.x;
+                ySum += vector.y;
+                zSum += vector.z;
+                count++;
+            }
+            return new Vector3(xSum / count, ySum / count, zSum / count);
         }
 
         /// <summary>

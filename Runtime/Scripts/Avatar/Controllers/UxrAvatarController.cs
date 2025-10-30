@@ -3,6 +3,8 @@
 //   Copyright (c) VRMADA, All rights reserved.
 // </copyright>
 // --------------------------------------------------------------------------------------------------------------------
+
+using System.Collections.Generic;
 using UltimateXR.Core;
 using UltimateXR.Core.Components.Composite;
 using UltimateXR.Devices;
@@ -191,8 +193,10 @@ namespace UltimateXR.Avatar.Controllers
         /// </summary>
         protected void UpdateLocomotion()
         {
-            foreach (UxrLocomotion locomotion in UxrLocomotion.GetComponents<UxrLocomotion>(Avatar))
+            IList<UxrLocomotion> locomotions = (IList<UxrLocomotion>)UxrLocomotion.GetComponents<UxrLocomotion>(Avatar);
+            for (var i = 0; i < locomotions.Count; i++)
             {
+                var locomotion = locomotions[i];
                 if (locomotion.gameObject.activeInHierarchy && locomotion.enabled)
                 {
                     ((IUxrLocomotionUpdater)locomotion).UpdateLocomotion();

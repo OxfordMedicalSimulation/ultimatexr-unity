@@ -3,6 +3,8 @@
 //   Copyright (c) VRMADA, All rights reserved.
 // </copyright>
 // --------------------------------------------------------------------------------------------------------------------
+
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using UltimateXR.Avatar;
@@ -318,9 +320,13 @@ namespace UltimateXR.Manipulation
             Vector3       centerOfMassPosition = transform.TransformPoint(ThrowCenterOfMassLocalPosition);
             Vector3       throwTipPosition     = transform.TransformPoint(ThrowTipLocalPosition);
             PhysicsSample newSample            = new PhysicsSample(_physicsSampleWindow.LastOrDefault(), sampledTransform, centerOfMassPosition, throwTipPosition, Time.deltaTime);
-
+            
             // Update timers
-            _physicsSampleWindow.ForEach(s => s.Age += Time.deltaTime);
+            for (var i = 0; i < _physicsSampleWindow.Count; i++)
+            {
+                var s = _physicsSampleWindow[i];
+                s.Age += Time.deltaTime;
+            }
 
             // Remove samples out of the time window
             _physicsSampleWindow.RemoveAll(s => s.Age > SampleWindowSeconds);
@@ -331,8 +337,14 @@ namespace UltimateXR.Manipulation
             // Compute instant and smoothed values:
             Velocity              = newSample.Velocity;
             AngularVelocity       = newSample.EulerSpeed;
-            SmoothVelocity        = Vector3Ext.Average(_physicsSampleWindow.Select(s => s.TotalVelocity));
-
+            // get all the total velocities without linq
+            Span<Vector3> x = stackalloc Vector3[_physicsSampleWindow.Count];
+            for (int i = 0; i < _physicsSampleWindow.Count; i++)
+            {
+                x[i] = _physicsSampleWindow[i].TotalVelocity;
+            }
+            
+            SmoothVelocity        = Vector3Ext.Average(x.ToArray());
             Quaternion relative = Quaternion.Inverse(_physicsSampleWindow.First().Rotation) * _physicsSampleWindow.Last().Rotation;
             relative.ToAngleAxis(out float angle, out Vector3 axis);
             

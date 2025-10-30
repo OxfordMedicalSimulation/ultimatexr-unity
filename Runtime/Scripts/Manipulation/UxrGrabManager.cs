@@ -407,7 +407,7 @@ namespace UltimateXR.Manipulation
             grabPoint       = 0;
 
             // Iterate over objects
-
+            
             foreach (UxrGrabbableObject candidate in candidates ?? UxrGrabbableObject.EnabledComponents)
             {
                 float minDistance = float.MaxValue; // For the same object we will not just consider the distance but also how close the grabber is to the grip orientation

@@ -1220,9 +1220,11 @@ namespace UltimateXR.Core
             
             OnUpdatingStage(UxrUpdateStage.AvatarUsingTracking);
 
-            foreach (UxrAvatar avatar in UxrAvatar.EnabledComponents)
+            for (var i = 0; i < UxrAvatar.EnabledComponents.Count; i++)
             {
-                if (avatar.AvatarMode == UxrAvatarMode.Local && avatar.AvatarController is { enabled: true } avatarController)
+                var avatar = UxrAvatar.EnabledComponents[i];
+                if (avatar.AvatarMode == UxrAvatarMode.Local && avatar.AvatarController is
+                        { enabled: true } avatarController)
                 {
                     OnAvatarUpdating(avatar, new UxrAvatarUpdateEventArgs(avatar, UxrUpdateStage.AvatarUsingTracking));
                     ((IUxrAvatarControllerUpdater)avatarController).UpdateAvatarUsingTrackingDevices();
@@ -1418,11 +1420,16 @@ namespace UltimateXR.Core
         {
             get
             {
-                foreach (UxrAvatar avatar in UxrAvatar.EnabledComponents)
+                for (var i = 0; i < UxrAvatar.AllComponents.Count; i++)
                 {
-                    if (avatar.AvatarMode == UxrAvatarMode.Local && avatar.AvatarController != null && avatar.AvatarController.enabled)
+                    var avatar = UxrAvatar.AllComponents[i];
+                    if (avatar.enabled && avatar.gameObject.activeInHierarchy)
                     {
-                        yield return avatar.AvatarController;
+                        if (avatar.AvatarMode == UxrAvatarMode.Local && avatar.AvatarController != null &&
+                            avatar.AvatarController.enabled)
+                        {
+                            yield return avatar.AvatarController;
+                        }
                     }
                 }
             }

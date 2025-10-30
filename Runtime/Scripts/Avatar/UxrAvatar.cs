@@ -566,8 +566,9 @@ namespace UltimateXR.Avatar
                 if (_avatarRenderers != null)
                 {
                     bool enable = HasFlagUnsafe(value,UxrAvatarRenderModes.Avatar);
-                    foreach (var r in _avatarRenderers)
+                    for (var i = 0; i < _avatarRenderers.Count; i++)
                     {
+                        var r = _avatarRenderers[i];
                         r.enabled = enable;
                     }
                 }

@@ -5,6 +5,7 @@
 // --------------------------------------------------------------------------------------------------------------------
 using System;
 using System.Collections.Generic;
+using System.Runtime.InteropServices;
 using UltimateXR.Core.Components.Composite;
 using UnityEngine;
 using UltimateXR.Avatar;
@@ -77,18 +78,23 @@ namespace UltimateXR.Core.Components
         /// <summary>
         ///     Gets all components of this specific type that are enabled, in all open scenes.
         /// </summary>
-        public new static IEnumerable<T> EnabledComponents
+        
+        private static IList<T> _enabledComponentsList = new List<T>();
+        public new static IList<T> EnabledComponents
         {
             get
             {
+                _enabledComponentsList.Clear();
                 for (var i = 0; i < s_typeComponents.Count; i++)
                 {
                     var component = s_typeComponents[i];
                     if (component.enabled && component.gameObject.activeInHierarchy)
                     {
-                        yield return component;
+                        _enabledComponentsList.Add(component);
                     }
                 }
+                
+                return _enabledComponentsList;
             }
         }
 

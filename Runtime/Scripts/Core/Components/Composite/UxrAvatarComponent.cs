@@ -213,7 +213,7 @@ namespace UltimateXR.Core.Components.Composite
         ///     has never been enabled. In this case it is recommended to resort to
         ///     <see cref="GameObject.GetComponentsInChildren{T}(bool)" />.
         /// </remarks>
-        public static IEnumerable<T> GetComponents(UxrAvatar avatar, bool includeDisabled = false)
+        public static IList<T> GetComponents(UxrAvatar avatar, bool includeDisabled = false)
         {
             _allComp.Clear();
 

@@ -363,7 +363,7 @@ namespace UltimateXR.Manipulation
         /// </returns>
         public UxrGripPoseInfo GetGripPoseInfo(UxrAvatar avatar, bool usePrefabInheritance = true)
         {
-            var prefabGuidChain = avatar.GetPrefabGuidChain();
+            var prefabGuidChain = avatar.GetPrefabGuidChain().ToList();
 
             for (int i = 0; i < prefabGuidChain.Count; i++)
             {

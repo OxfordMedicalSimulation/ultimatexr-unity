@@ -952,6 +952,10 @@ namespace UltimateXR.UI.UnityInputModule
                 {
                     data.PressedThisFrame = true;
                 }
+                else if (IsFingerTipOutside(data, data.pointerEnter) && !WasFingerTipPreviousPosOutside(data, data.pointerEnter))
+                {
+                    data.ReleasedThisFrame = true;
+                }
             }
 
             // Make sure here that UI events will get called appropriately
@@ -1134,7 +1138,7 @@ namespace UltimateXR.UI.UnityInputModule
         /// <returns>Whether the finger tip is on the front side</returns>
         private bool IsFingerTipOutside(UxrPointerEventData pointerEventData, GameObject uiGameObject)
         {
-            return Vector3.Dot(uiGameObject.transform.position - pointerEventData.WorldPos, uiGameObject.transform.forward) > 0.0f;
+            return Vector3.Dot(uiGameObject.transform.position - pointerEventData.WorldPos, uiGameObject.transform.forward) > _fingerTipMaxDragDistance;
         }
 
         private bool IsFingerTipTouch(UxrPointerEventData pointerEventData)
@@ -1150,7 +1154,7 @@ namespace UltimateXR.UI.UnityInputModule
         /// <returns>Whether the finger tip was on the front side the previous frame</returns>
         private bool WasFingerTipPreviousPosOutside(UxrPointerEventData pointerEventData, GameObject uiGameObject)
         {
-            return Vector3.Dot(uiGameObject.transform.position - pointerEventData.PreviousWorldPos, uiGameObject.transform.forward) > 0.0f;
+            return Vector3.Dot(uiGameObject.transform.position - pointerEventData.PreviousWorldPos, uiGameObject.transform.forward) > _fingerTipMaxDragDistance;
         }
 
         #endregion

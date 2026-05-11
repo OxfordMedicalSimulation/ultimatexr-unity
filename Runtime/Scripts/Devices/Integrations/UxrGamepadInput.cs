@@ -3,6 +3,7 @@
 //   Copyright (c) VRMADA, All rights reserved.
 // </copyright>
 // --------------------------------------------------------------------------------------------------------------------
+using System.Collections.Generic;
 using UltimateXR.Core;
 using UnityEngine;
 #if ULTIMATEXR_USE_UNITYINPUTSYSTEM_SDK
@@ -19,7 +20,7 @@ namespace UltimateXR.Devices.Integrations
         #region Public Overrides UxrControllerInput
 
         /// <inheritdoc />
-        public override string SDKDependency => UxrManager.SdkUnityInputSystem;
+        public override string SDKDependency => UxrConstants.SdkUnityInputSystem;
 
         /// <inheritdoc />
         public override UxrControllerSetupType SetupType => UxrControllerSetupType.Single;
@@ -123,11 +124,22 @@ namespace UltimateXR.Devices.Integrations
             {
 #if ULTIMATEXR_USE_UNITYINPUTSYSTEM_SDK
                 InputSystem.onDeviceChange += InputSystem_DeviceChanged;
-                enabled                    =  _gamepad != null;
+                
+                if (_gamepad != null)
+                {
+                    enabled = true;
+                    RaiseConnectOnStartEvents = new List<UxrDeviceConnectEventArgs>
+                                                {
+                                                    new UxrControllerConnectEventArgs(true, _gamepad.name, false, UxrHandSide.Left)
+                                                };
+                }
+                else
+                {
+                    enabled = false;
+                }
 #else
                 enabled = false;
 #endif
-                RaiseConnectOnStart = enabled;
             }
         }
 
@@ -158,17 +170,17 @@ namespace UltimateXR.Devices.Integrations
         {
             if (enabled == false && Gamepad.current != null)
             {
-                // If component is disabled and gamepad is available, act as connect
+                // If the component is disabled and a gamepad is available, act as connect.
                 enabled  = true;
                 _gamepad = Gamepad.current;
-                OnDeviceConnected(new UxrDeviceConnectEventArgs(true));
+                OnDeviceConnected(new UxrControllerConnectEventArgs(true, Gamepad.current.name, false, UxrHandSide.Left));
             }
             else if (enabled && Gamepad.current == null)
             {
-                // If component is enabled and gamepad is unavailable, act as disconnect
+                // If the component is enabled and a gamepad is unavailable, act as a disconnect.
                 enabled  = false;
                 _gamepad = null;
-                OnDeviceConnected(new UxrDeviceConnectEventArgs(false));
+                OnDeviceConnected(new UxrControllerConnectEventArgs(false, Gamepad.current.name, false, UxrHandSide.Left));
             }
         }
 #endif

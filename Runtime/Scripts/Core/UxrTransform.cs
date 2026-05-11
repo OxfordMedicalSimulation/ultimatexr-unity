@@ -3,6 +3,7 @@
 //   Copyright (c) VRMADA, All rights reserved.
 // </copyright>
 // --------------------------------------------------------------------------------------------------------------------
+using UltimateXR.Core.Instantiation;
 using UnityEngine;
 
 namespace UltimateXR.Core
@@ -13,6 +14,11 @@ namespace UltimateXR.Core
     public class UxrTransform
     {
         #region Public Types & Data
+
+        /// <summary>
+        ///     Gets the parent.
+        /// </summary>
+        public Transform Parent { get; }
 
         /// <summary>
         ///     Gets the position.
@@ -54,6 +60,7 @@ namespace UltimateXR.Core
         /// <param name="transform">Transform to store the information of</param>
         public UxrTransform(Transform transform)
         {
+            Parent        = transform.parent;
             Position      = transform.position;
             LocalPosition = transform.localPosition;
             Rotation      = transform.rotation;
@@ -67,14 +74,33 @@ namespace UltimateXR.Core
         #region Public Methods
 
         /// <summary>
-        ///     Applies the stored values to a given transform.
+        ///     Applies the stored values to a given transform. It will apply the local position/rotation/scale.
         /// </summary>
-        /// <param name="transform">The transform to apply the values to</param>
+        /// <param name="transform">The transform to apply the local values to</param>
+        public void ApplyLocalTo(Transform transform)
+        {
+            if (transform.parent != Parent)
+            {
+                UxrInstanceManager.Instance.SetParent(transform, Parent, false);
+            }
+
+            UxrInstanceManager.Instance.SetLocalPositionAndRotation(transform, LocalPosition, LocalRotation);
+            UxrInstanceManager.Instance.SetScale(transform, LocalScale);
+        }
+
+        /// <summary>
+        ///     Applies the stored values to a given transform. It will apply the world position/rotation/scale.
+        /// </summary>
+        /// <param name="transform">The transform to apply the world values to</param>
         public void ApplyTo(Transform transform)
         {
-            transform.localPosition = LocalPosition;
-            transform.localRotation = LocalRotation;
-            transform.localScale    = LocalScale;
+            if (transform.parent != Parent)
+            {
+                UxrInstanceManager.Instance.SetParent(transform, Parent, false);
+            }
+
+            UxrInstanceManager.Instance.SetPositionAndRotation(transform, Position, Rotation);
+            UxrInstanceManager.Instance.SetScale(transform, LocalScale);
         }
 
         #endregion

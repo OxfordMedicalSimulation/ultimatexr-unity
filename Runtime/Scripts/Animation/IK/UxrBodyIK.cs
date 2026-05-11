@@ -8,6 +8,7 @@ using UltimateXR.Avatar;
 using UltimateXR.Avatar.Rig;
 using UltimateXR.Core;
 using UltimateXR.Core.Math;
+using UltimateXR.Core.Settings;
 using UltimateXR.Extensions.Unity;
 using UnityEngine;
 
@@ -18,6 +19,26 @@ namespace UltimateXR.Animation.IK
     /// </summary>
     public sealed partial class UxrBodyIK
     {
+        #region Public Types & Data
+
+        /// <summary>
+        ///     Gets whether the object was initialized.
+        /// </summary>
+        public bool Initialized { get; private set; }
+
+        #endregion
+
+        #region Internal Types & Data
+
+        /// <summary>
+        ///     When true, time-dependent smoothing (body pivot rotation, torsion damping) is skipped during IK solving.
+        ///     Set this before calling <see cref="PreSolveAvatarIK" /> and <see cref="PostSolveAvatarIK" /> from a
+        ///     BeforeRender callback to re-sync the avatar to the latest camera pose without double-advancing state.
+        /// </summary>
+        internal bool SkipTimeDependentUpdates { get; set; }
+
+        #endregion
+
         #region Public Methods
 
         /// <summary>
@@ -25,19 +46,24 @@ namespace UltimateXR.Animation.IK
         /// </summary>
         /// <param name="avatar">Avatar that the IK will be computed for</param>
         /// <param name="settings">IK settings to use</param>
-        /// <param name="usesExternalArmIK">Whether the avatar uses arm IK from other side</param>
-        /// <param name="usesExternalLegIK">Whether the avatar uses leg IK from other side</param>
+        /// <param name="usesExternalArmIK">Whether the avatar uses an arm IK</param>
+        /// <param name="usesExternalLegIK">Whether the avatar uses leg IK</param>
         public void Initialize(UxrAvatar avatar, UxrBodyIKSettings settings, bool usesExternalArmIK, bool usesExternalLegIK)
         {
+            Initialized      = true;
             _avatar          = avatar;
             _avatarTransform = avatar.transform;
             _settings        = settings;
-            
+
             // Get body root
 
             if (avatar.AvatarRig.Head.Head == null)
             {
-                Debug.LogError($"Avatar {avatar.name} has no head setup in the {nameof(UxrAvatar)}'s Rig field");
+                if (UxrGlobalSettings.Instance.LogLevelAvatar >= UxrLogLevel.Errors)
+                {
+                    Debug.LogError($"{UxrConstants.AvatarModule} Avatar {avatar.name} has no head setup in the {nameof(UxrAvatar)}'s Rig field");
+                }
+
                 return;
             }
 
@@ -97,7 +123,11 @@ namespace UltimateXR.Animation.IK
 
             if (_avatarBodyRoot == null)
             {
-                Debug.LogWarning("No common avatar body root found. If there is an avatar body it will not follow the head position.");
+                if (UxrGlobalSettings.Instance.LogLevelAvatar >= UxrLogLevel.Warnings)
+                {
+                    Debug.LogWarning($"{UxrConstants.AvatarModule} No common avatar body root found. If there is an avatar body it will not follow the head position.");
+                }
+
                 _avatarBodyRoot = new GameObject("Dummy Root").transform;
                 _avatarBodyRoot.SetParent(_avatarTransform);
                 _avatarBodyRoot.SetPositionAndRotation(_avatarTransform.position, _avatarTransform.rotation);
@@ -205,47 +235,67 @@ namespace UltimateXR.Animation.IK
 
             // Compute neck position/rotation to make the avatar eyes match the camera
 
-            Transform  cameraTransform = _avatar.CameraComponent.transform;
-            Vector3    avatarPivotPos  = _avatarForward.position;
-            Vector3    neckPosition    = GetWorldPosFromOffset(cameraTransform, cameraTransform, _neckPosRelativeToEyes);
-            Quaternion neckRotation    = cameraTransform.rotation * _neckRotRelativeToEyes;
+            Camera avatarCamera = _avatar.CameraComponent;
+
+            if (avatarCamera == null)
+            {
+                return;
+            }
+            
+            Transform  cameraTransform     = avatarCamera.transform;
+            Vector3    localAvatarPivotPos = _avatar.transform.InverseTransformPoint(_avatarForward.position);
+            Vector3    neckPosition        = GetWorldPosFromOffset(cameraTransform, cameraTransform, _neckPosRelativeToEyes);
+            Quaternion neckRotation        = cameraTransform.rotation * _neckRotRelativeToEyes;
 
             _avatarNeck.SetPositionAndRotation(neckPosition, neckRotation);
 
             // Update avatar pivot
 
             _avatarForward.position = GetWorldPosFromOffset(_avatarForward, _avatarNeck, _avatarForwardPosRelativeToNeck);
+            bool smoothForwardRotation = true;
 
-            if (Vector3.Angle(cameraTransform.forward, _avatar.transform.up) > CameraUpsideDownAngleThreshold &&
-                Vector3.Angle(cameraTransform.forward, -_avatar.transform.up) > CameraUpsideDownAngleThreshold &&
-                Vector3.Angle(cameraTransform.forward, _avatarForward.forward) < 90.0f)
+            if (Vector3.Angle(cameraTransform.forward, _avatar.transform.up) > CameraUpsideDownAngleThreshold && Vector3.Angle(cameraTransform.forward, -_avatar.transform.up) > CameraUpsideDownAngleThreshold)
             {
                 // _straightSpineForward contains the forward direction where the avatar looks (vector.y is 0).
                 // This is different from _avatarForward.forward because avatarForward allows the head to rotate
                 // some degrees without rotating the whole body along with it.
                 _straightSpineForward = Vector3.ProjectOnPlane(cameraTransform.forward, _avatar.transform.up);
+
+                if (Vector3.Angle(cameraTransform.forward, _avatarForward.forward) > 90.0f)
+                {
+                    // Bad orientation, fix instantly.
+                    smoothForwardRotation = false;
+                }
             }
 
-            float bodyRotationAngle = Vector3.Angle(_straightSpineForward, _avatarForward.forward);
-            if (bodyRotationAngle > _settings.HeadFreeRangeTorsion)
+            if (!SkipTimeDependentUpdates)
             {
-                float radians = (bodyRotationAngle - _settings.HeadFreeRangeTorsion) * Mathf.Deg2Rad;
-                _avatarForwardTarget = Vector3.RotateTowards(_avatarForwardTarget, _straightSpineForward, radians, 0.0f);
+                float bodyRotationAngle = Vector3.Angle(_straightSpineForward, _avatarForward.forward);
+                if (bodyRotationAngle > _settings.HeadFreeRangeTorsion)
+                {
+                    float radians = (bodyRotationAngle - _settings.HeadFreeRangeTorsion) * Mathf.Deg2Rad;
+                    _avatarForwardTarget = Vector3.RotateTowards(_avatarForwardTarget, _straightSpineForward, radians, 0.0f);
+                }
+
+                // Update avatar forward direction
+
+                float rotationSpeedMultiplier = Vector3.Angle(_avatarForward.forward, _avatarForwardTarget) / 30.0f;
+                float maxForwardDegreesDelta  = AvatarRotationDegreesPerSecond                              * rotationSpeedMultiplier * _settings.BodyPivotRotationSpeed * Time.deltaTime;
+
+                if (_avatarForward.forward.sqrMagnitude > 0.0f && _avatarForwardTarget.sqrMagnitude > 0.0f)
+                {
+                    _avatarForward.rotation = Quaternion.RotateTowards(Quaternion.LookRotation(_avatarForward.forward, _avatar.transform.up),
+                                                                       Quaternion.LookRotation(_avatarForwardTarget,   _avatar.transform.up),
+                                                                       smoothForwardRotation ? maxForwardDegreesDelta : 180.0f);
+                }
             }
-
-            // Update avatar forward direction
-
-            float rotationSpeedMultiplier = Vector3.Angle(_avatarForward.forward, _avatarForwardTarget) / 30.0f;
-            _avatarForward.rotation = Quaternion.RotateTowards(Quaternion.LookRotation(_avatarForward.forward, _avatar.transform.up),
-                                                               Quaternion.LookRotation(_avatarForwardTarget,   _avatar.transform.up),
-                                                               AvatarRotationDegreesPerSecond * rotationSpeedMultiplier * _settings.BodyPivotRotationSpeed * Time.deltaTime);
 
             // Since the avatar pivot is parent of all body nodes, move the neck back to its position
             _avatarNeck.SetPositionAndRotation(neckPosition, neckRotation);
 
             if (_settings.LockBodyPivot)
             {
-                _avatarForward.position = avatarPivotPos;
+                _avatarForward.position = _avatar.transform.TransformPoint(localAvatarPivotPos);
             }
 
             // We've computed the avatar head orientation using only the neck. Now redistribute it using the _neckHeadBalance parameter so that
@@ -260,7 +310,7 @@ namespace UltimateXR.Animation.IK
 
                 // Compute partial neck rotation
                 neckRotation = _avatarForward.rotation * (Quaternion.Slerp(Quaternion.identity, neckUniversalRotation, 1.0f - _settings.NeckHeadBalance) *
-                                                          _neckUniversalLocalAxes.InitialUniversalLocalReferenceRotation *
+                                                          _neckUniversalLocalAxes.InitialUniversalLocalReferenceRotation                                 *
                                                           _neckUniversalLocalAxes.UniversalToActualAxesRotation);
 
                 _avatarNeck.rotation = neckRotation;
@@ -276,6 +326,11 @@ namespace UltimateXR.Animation.IK
             if (!_settings.LockBodyPivot)
             {
                 // Compute head rotation without the rotation around the Y axis:
+                if (_straightSpineForward.sqrMagnitude == 0.0f)
+                {
+                    _straightSpineForward = _avatar.transform.forward;
+                }
+
                 Quaternion headPropagateRotation = Quaternion.Inverse(Quaternion.LookRotation(_straightSpineForward, _avatar.transform.up)) * _headUniversalLocalAxes.UniversalRotation;
 
                 // Remove the rotation that the head can do without propagation to chest/spine:
@@ -313,21 +368,21 @@ namespace UltimateXR.Animation.IK
                     {
                         _avatar.AvatarRig.UpperChest.rotation = _avatarForward.rotation *
                                                                 (Quaternion.Slerp(Quaternion.identity, headPropagateRotation, _settings.UpperChestBend / totalWeight) *
-                                                                 _upperChestUniversalLocalAxes.InitialUniversalLocalReferenceRotation * _upperChestUniversalLocalAxes.UniversalToActualAxesRotation);
+                                                                 _upperChestUniversalLocalAxes.InitialUniversalLocalReferenceRotation                                 * _upperChestUniversalLocalAxes.UniversalToActualAxesRotation);
                     }
 
                     if (_avatar.AvatarRig.Chest)
                     {
                         _avatar.AvatarRig.Chest.rotation = _avatarForward.rotation *
                                                            (Quaternion.Slerp(Quaternion.identity, headPropagateRotation, _settings.ChestBend / totalWeight) *
-                                                            _chestUniversalLocalAxes.InitialUniversalLocalReferenceRotation * _chestUniversalLocalAxes.UniversalToActualAxesRotation);
+                                                            _chestUniversalLocalAxes.InitialUniversalLocalReferenceRotation                                 * _chestUniversalLocalAxes.UniversalToActualAxesRotation);
                     }
 
                     if (_avatar.AvatarRig.Spine)
                     {
                         _avatar.AvatarRig.Spine.rotation = _avatarForward.rotation *
                                                            (Quaternion.Slerp(Quaternion.identity, headPropagateRotation, _settings.SpineBend / totalWeight) *
-                                                            _spineUniversalLocalAxes.InitialUniversalLocalReferenceRotation * _spineUniversalLocalAxes.UniversalToActualAxesRotation);
+                                                            _spineUniversalLocalAxes.InitialUniversalLocalReferenceRotation                                 * _spineUniversalLocalAxes.UniversalToActualAxesRotation);
                     }
                 }
 
@@ -340,12 +395,15 @@ namespace UltimateXR.Animation.IK
 
             // If the avatar moves, straighten the forward direction
 
-            float avatarMovedDistance = Vector3.Distance(avatarPivotPos, _avatarForward.position);
-
-            if (avatarMovedDistance / Time.deltaTime > AvatarStraighteningMinSpeed)
+            if (!SkipTimeDependentUpdates)
             {
-                float degreesToStraighten = avatarMovedDistance * DegreesStraightenedPerMeterMoved;
-                _avatarForwardTarget = Vector3.RotateTowards(_avatarForwardTarget, _straightSpineForward, degreesToStraighten * Mathf.Deg2Rad, 0.0f);
+                float avatarMovedDistance = Vector3.Distance(localAvatarPivotPos, _avatarForward.position);
+
+                if (avatarMovedDistance / Time.deltaTime > AvatarStraighteningMinSpeed)
+                {
+                    float degreesToStraighten = avatarMovedDistance * DegreesStraightenedPerMeterMoved;
+                    _avatarForwardTarget = Vector3.RotateTowards(_avatarForwardTarget, _straightSpineForward, degreesToStraighten * Mathf.Deg2Rad, 0.0f);
+                }
             }
 
             // Pop independent transforms (usually hands and other transforms with their own sensors)
@@ -353,6 +411,11 @@ namespace UltimateXR.Animation.IK
             foreach (IndependentBoneInfo boneInfo in _independentBones)
             {
                 boneInfo.Transform.SetPositionAndRotation(boneInfo.Position, boneInfo.Rotation);
+            }
+
+            if (_settings.LockBodyPivot)
+            {
+                _avatarForward.position = _avatar.transform.TransformPoint(localAvatarPivotPos);
             }
         }
 
@@ -421,16 +484,34 @@ namespace UltimateXR.Animation.IK
                 }
 
                 float upperChestTorsionAngle = maxRotationDegrees * torsoRotation * (_settings.UpperChestTorsion / totalWeight);
-                float chestTorsionAngle      = maxRotationDegrees * torsoRotation * (_settings.ChestTorsion / totalWeight);
-                float spineTorsionAngle      = maxRotationDegrees * torsoRotation * (_settings.SpineTorsion / totalWeight);
+                float chestTorsionAngle      = maxRotationDegrees * torsoRotation * (_settings.ChestTorsion      / totalWeight);
+                float spineTorsionAngle      = maxRotationDegrees * torsoRotation * (_settings.SpineTorsion      / totalWeight);
 
-                _upperChestTorsionAngle = Mathf.SmoothDampAngle(_upperChestTorsionAngle, upperChestTorsionAngle, ref _upperChestTorsionSpeed, BodyTorsionSmoothTime);
-                _chestTorsionAngle      = Mathf.SmoothDampAngle(_chestTorsionAngle,      chestTorsionAngle,      ref _chestTorsionSpeed,      BodyTorsionSmoothTime);
-                _spineTorsionAngle      = Mathf.SmoothDampAngle(_spineTorsionAngle,      spineTorsionAngle,      ref _spineTorsionSpeed,      BodyTorsionSmoothTime);
+                if (!SkipTimeDependentUpdates)
+                {
+                    _upperChestTorsionAngle = Mathf.SmoothDampAngle(_upperChestTorsionAngle, upperChestTorsionAngle, ref _upperChestTorsionSpeed, BodyTorsionSmoothTime);
+                    _chestTorsionAngle      = Mathf.SmoothDampAngle(_chestTorsionAngle,      chestTorsionAngle,      ref _chestTorsionSpeed,      BodyTorsionSmoothTime);
+                    _spineTorsionAngle      = Mathf.SmoothDampAngle(_spineTorsionAngle,      spineTorsionAngle,      ref _spineTorsionSpeed,      BodyTorsionSmoothTime);
+
+                    if (float.IsNaN(_upperChestTorsionAngle))
+                    {
+                        _upperChestTorsionAngle = float.IsNaN(upperChestTorsionAngle) ? 0.0f : upperChestTorsionAngle;
+                    }
+
+                    if (float.IsNaN(_chestTorsionAngle))
+                    {
+                        _chestTorsionAngle = float.IsNaN(chestTorsionAngle) ? 0.0f : chestTorsionAngle;
+                    }
+
+                    if (float.IsNaN(_spineTorsionAngle))
+                    {
+                        _spineTorsionAngle = float.IsNaN(spineTorsionAngle) ? 0.0f : spineTorsionAngle;
+                    }
+                }
 
                 if (_avatar.AvatarRig.UpperChest)
                 {
-                    _avatar.AvatarRig.UpperChest.localRotation *= Quaternion.AngleAxis(_spineTorsionAngle, _upperChestUniversalLocalAxes.LocalUp);
+                    _avatar.AvatarRig.UpperChest.localRotation *= Quaternion.AngleAxis(_upperChestTorsionAngle, _upperChestUniversalLocalAxes.LocalUp);
                 }
 
                 if (_avatar.AvatarRig.Chest)
@@ -460,8 +541,14 @@ namespace UltimateXR.Animation.IK
         /// <param name="e">Move event parameters</param>
         public void NotifyAvatarMoved(UxrAvatarMoveEventArgs e)
         {
+            if (!Initialized)
+            {
+                return;
+            }
+
             float angle = Vector3.SignedAngle(e.OldForward, e.NewForward, _avatar.transform.up);
-            _avatarForwardTarget = Quaternion.AngleAxis(angle, _avatar.transform.up) * _avatarForwardTarget;
+            _avatarForwardTarget  = Quaternion.AngleAxis(angle, _avatar.transform.up) * _avatarForwardTarget;
+            _straightSpineForward = Quaternion.AngleAxis(angle, _avatar.transform.up) * _straightSpineForward;
         }
 
         #endregion
@@ -471,7 +558,7 @@ namespace UltimateXR.Animation.IK
         /// <summary>
         ///     Computes an world position based on an offset from an object.
         /// </summary>
-        /// <param name="axes">The axes <paramref name="offset"/> refer to</param>
+        /// <param name="axes">The axes <paramref name="offset" /> refer to</param>
         /// <param name="transform">The object origin</param>
         /// <param name="offset">The offset components</param>
         /// <returns>Offset vector</returns>

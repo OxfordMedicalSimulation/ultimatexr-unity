@@ -9,6 +9,7 @@ using UltimateXR.Core;
 using UltimateXR.Core.Components.Composite;
 using UltimateXR.Extensions.Unity.Math;
 using UltimateXR.Manipulation;
+using UltimateXR.UI.UnityInputModule;
 using UnityEngine;
 
 namespace UltimateXR.UI
@@ -76,6 +77,17 @@ namespace UltimateXR.UI
             }
 
             return box != null && transform.position.IsInsideBox(box);
+        }
+
+        /// <summary>
+        ///     Tries to get the pointer event data.
+        /// </summary>
+        /// <param name="pointerEventData">Returns the pointer event data</param>
+        /// <returns>True if the event data was returned, false otherwise</returns>
+        public bool TryGetPointerEventData(out UxrPointerEventData pointerEventData)
+        {
+            pointerEventData = UxrPointerInputModule.Instance.GetPointerEventData(this);
+            return pointerEventData.HasData;
         }
 
         #endregion

@@ -3,6 +3,7 @@
 //   Copyright (c) VRMADA, All rights reserved.
 // </copyright>
 // --------------------------------------------------------------------------------------------------------------------
+using System.Linq;
 using UltimateXR.Animation.Interpolation;
 using UltimateXR.Audio;
 using UltimateXR.Avatar;
@@ -52,12 +53,42 @@ namespace UltimateXR.Examples.FullScene.Doors
         #region Public Methods
 
         /// <summary>
-        ///     Forces to open the door. This can be used in child implementations where opening can be disallowed under certain
+        ///     Opens the door. This can be used in child implementations where opening can be disallowed under certain
         ///     conditions. See <see cref="ArmoredDoor" /> for an example.
         /// </summary>
-        public void OpenDoor()
+        /// <param name="playSound">Whether to play the open sound</param>
+        public void OpenDoor(bool playSound)
         {
+            BeginSync();
+
             IsOpen = true;
+
+            if (playSound)
+            {
+                _audioOpen.Play(FloorCenter.position);
+            }
+
+            EndSyncMethod(SyncParams(playSound));
+        }
+
+        /// <summary>
+        ///     Closes the door.
+        /// </summary>
+        /// <param name="playSound">Whether to play the close sound</param>
+        public void CloseDoor(bool playSound)
+        {
+            BeginSync();
+
+            // Over closing distance and door completely open: close door
+            IsOpen          = false;
+            _openDelayTimer = 0.0f;
+
+            if (playSound)
+            {
+                _audioClose.Play(FloorCenter.position);
+            }
+
+            EndSyncMethod(SyncParams(playSound));
         }
 
         #endregion
@@ -80,32 +111,49 @@ namespace UltimateXR.Examples.FullScene.Doors
         /// </summary>
         private void Update()
         {
-            if (UxrAvatar.LocalAvatar == null)
+            if (UxrAvatar.LocalAvatar != null)
             {
-                return;
-            }
+                // Check distance to the door
 
-            // Check distance to door
+                UxrAvatar closestAvatar   = null;
+                float     closestDistance = float.MaxValue;
 
-            float distance = Vector3.Distance(UxrAvatar.LocalAvatar.CameraFloorPosition, FloorCenter.position);
-
-            if (distance < _openDistance && Mathf.Approximately(OpenValue, 0.0f))
-            {
-                _openDelayTimer += Time.deltaTime;
-
-                if (_openDelayTimer > _openDelaySeconds && IsOpeningAllowed)
+                for (int i = 0; i < UxrAvatar.AllComponents.Count; i++)
                 {
-                    // Within opening distance, door completely closed and opening allowed: open door
-                    IsOpen = true;
-                    _audioOpen.Play(FloorCenter.position);
+                    UxrAvatar avatar = UxrAvatar.AllComponents[i];
+                    if (avatar.isActiveAndEnabled)
+                    {
+                        float distance = Vector3.Distance(avatar.CameraFloorPosition, FloorCenter.position);
+
+                        if (distance < closestDistance)
+                        {
+                            closestAvatar   = avatar;
+                            closestDistance = distance;
+                        }
+                    }
                 }
-            }
-            else if (distance > _closeDistance && Mathf.Approximately(OpenValue, 1.0f))
-            {
-                // Over closing distance and door completely open: close door
-                IsOpen          = false;
-                _openDelayTimer = 0.0f;
-                _audioClose.Play(FloorCenter.position);
+
+                if (closestAvatar == UxrAvatar.LocalAvatar && closestAvatar != null)
+                {
+                    // The closest avatar will determine the door state.
+
+                    float closestAvatarDistance = Vector3.Distance(closestAvatar.CameraFloorPosition, FloorCenter.position);
+
+                    if (closestAvatarDistance < _openDistance && Mathf.Approximately(OpenValue, 0.0f))
+                    {
+                        _openDelayTimer += Time.deltaTime;
+
+                        if (_openDelayTimer > _openDelaySeconds && IsOpeningAllowed)
+                        {
+                            // Within opening distance, door completely closed and opening allowed: open door
+                            OpenDoor(true);
+                        }
+                    }
+                    else if (closestAvatarDistance > _closeDistance && Mathf.Approximately(OpenValue, 1.0f))
+                    {
+                        CloseDoor(true);
+                    }
+                }
             }
 
             // Update timer and perform interpolation

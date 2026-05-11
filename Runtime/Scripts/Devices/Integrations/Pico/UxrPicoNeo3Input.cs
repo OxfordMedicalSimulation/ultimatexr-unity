@@ -24,7 +24,7 @@ namespace UltimateXR.Devices.Integrations.Pico
         /// <summary>
         ///     Gets the SDK dependency: PicoXR.
         /// </summary>
-        public override string SDKDependency => UxrManager.SdkPicoXR;
+        public override string SDKDependency => UxrConstants.SdkPicoXR;
 
         /// <inheritdoc />
         public override UxrControllerSetupType SetupType => UxrControllerSetupType.Dual;
@@ -39,12 +39,12 @@ namespace UltimateXR.Devices.Integrations.Pico
         public override bool HasControllerElements(UxrHandSide handSide, UxrControllerElements controllerElements)
         {
             uint validElements = (uint)(UxrControllerElements.Joystick |
-                                        UxrControllerElements.Grip |
-                                        UxrControllerElements.Trigger |
-                                        UxrControllerElements.Button1 |
-                                        UxrControllerElements.Button2 |
-                                        UxrControllerElements.Menu |
-                                        UxrControllerElements.Back |
+                                        UxrControllerElements.Grip     |
+                                        UxrControllerElements.Trigger  |
+                                        UxrControllerElements.Button1  |
+                                        UxrControllerElements.Button2  |
+                                        UxrControllerElements.Menu     |
+                                        UxrControllerElements.Back     |
                                         UxrControllerElements.DPad);
 
             return (validElements & (uint)controllerElements) == (uint)controllerElements;
@@ -52,10 +52,10 @@ namespace UltimateXR.Devices.Integrations.Pico
 
         #endregion
 
-        #region Public Overrides UxrUnityXRControllerInput
+        #region Protected Overrides UxrUnityXRControllerInput
 
         /// <inheritdoc />
-        public override IEnumerable<string> ControllerNames
+        protected override IEnumerable<string> ControllerNames
         {
             get
             {
@@ -63,6 +63,8 @@ namespace UltimateXR.Devices.Integrations.Pico
                 yield return "PicoXR Controller-Right";
                 yield return "PICO Controller-Left";
                 yield return "PICO Controller-Right";
+                yield return "PICO Live Preview Controller-Left";
+                yield return "PICO Live Preview Controller-Right";
             }
         }
 

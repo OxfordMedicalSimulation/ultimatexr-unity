@@ -8,6 +8,7 @@ using System.Collections;
 using System.Collections.Generic;
 using UltimateXR.Animation.Interpolation;
 using UltimateXR.Core;
+using UltimateXR.Core.Settings;
 using UltimateXR.Extensions.Unity.Math;
 using UnityEngine;
 using UnityEngine.XR;
@@ -23,12 +24,29 @@ namespace UltimateXR.Devices
 
         [Header("Device sensor tracking positions:")] [SerializeField] private Transform _leftHandSensor;
         [SerializeField]                                               private Transform _rightHandSensor;
+        [SerializeField]                                               private Transform _leftHandOpenXRAim;
+        [SerializeField]                                               private Transform _rightHandOpenXRAim;
+        [SerializeField]                                               private Transform _leftHandOpenXRGrip;
+        [SerializeField]                                               private Transform _rightHandOpenXRGrip;
 
         [Header("Update avatar using sensors:")] [SerializeField] private bool  _updateAvatarLeftHand  = true;
         [SerializeField]                                          private bool  _updateAvatarRightHand = true;
         [SerializeField] [Range(0, 1)]                            private float _smoothPosition;
         [SerializeField] [Range(0, 1)]                            private float _smoothRotation;
-        [SerializeField]                                          private bool  _smoothUnscaledTime = false;
+
+        #endregion
+
+        #region Public Types & Data
+
+        /// <summary>
+        ///     Gets if the avatar's left hand needs to be updated each time we get new sensor data for it
+        /// </summary>
+        public bool UpdateAvatarLeftHand => _updateAvatarLeftHand;
+
+        /// <summary>
+        ///     Gets if the avatar's right hand needs to be updated each time we get new sensor data for it
+        /// </summary>
+        public bool UpdateAvatarRightHand => _updateAvatarRightHand;
 
         #endregion
 
@@ -98,21 +116,7 @@ namespace UltimateXR.Devices
         /// <inheritdoc />
         public Quaternion SensorRightHandRot => SensorRightRot * _localSensorRightHandRot;
 
-        /// <inheritdoc />
-        public bool ShouldUpdateLeftHand 
-        {
-            get => _updateAvatarLeftHand;
-            set => _updateAvatarLeftHand = value;
-        }
-        
-        /// <inheritdoc />
-        public bool ShouldUpdateRightHand
-        {
-            get => _updateAvatarRightHand;
-            set => _updateAvatarRightHand = value;
-        }
-
-        #endregion
+        #endregion  
 
         #region Unity
 
@@ -124,14 +128,20 @@ namespace UltimateXR.Devices
         {
             base.Awake();
 
-            if (!SetupSensor(_leftHandSensor, Avatar.LeftHandBone, ref _localSensorLeftHandPos, ref _localSensorLeftHandRot))
+            if (!SetupSensorInternal(_leftHandSensor, Avatar.LeftHandBone, out _localSensorLeftHandPos, out _localSensorLeftHandRot))
             {
-                Debug.LogWarning(name + ": Avatar Rig has no left wrist setup or left sensor was not specified in the tracking component. Avatar's left hand position may not be updated.");
+                if (UxrGlobalSettings.Instance.LogLevelDevices >= UxrLogLevel.Warnings)
+                {
+                    Debug.LogWarning($"{UxrConstants.DevicesModule} {name}: Avatar Rig has no left wrist setup or left sensor was not specified in the tracking component. Avatar's left hand position may not be updated.");
+                }
             }
 
-            if (!SetupSensor(_rightHandSensor, Avatar.RightHandBone, ref _localSensorRightHandPos, ref _localSensorRightHandRot))
+            if (!SetupSensorInternal(_rightHandSensor, Avatar.RightHandBone, out _localSensorRightHandPos, out _localSensorRightHandRot))
             {
-                Debug.LogWarning(name + ": Avatar Rig has no right wrist setup or right sensor was not specified in the tracking component. Avatar's right hand position may not be updated.");
+                if (UxrGlobalSettings.Instance.LogLevelDevices >= UxrLogLevel.Warnings)
+                {
+                    Debug.LogWarning($"{UxrConstants.DevicesModule} {name}: Avatar Rig has no right wrist setup or right sensor was not specified in the tracking component. Avatar's right hand position may not be updated.");
+                }
             }
 
             // Start disabled and wait for input controllers to be connected. This way we don't have to check for controller presence in both input components and tracking components.
@@ -161,19 +171,6 @@ namespace UltimateXR.Devices
             if (!_cameraInitialized)
             {
                 StartCoroutine(RepeatSetupCameraCoroutine());
-            }
-        }
-
-        /// <summary>
-        ///     Sets the camera at floor level in 6DOF configurations, so that the camera is updated correctly
-        /// </summary>
-        protected override void Start()
-        {
-            base.Start();
-
-            if (Avatar && HeadsetIs6Dof)
-            {
-                //Avatar.SetCameraAtFloorLevel();
             }
         }
 
@@ -209,7 +206,14 @@ namespace UltimateXR.Devices
             if (RelatedControllerInputType != null && sender.GetType() == RelatedControllerInputType)
             {
                 // Compatible device.
-                Debug.Log($"Found compatible tracking component {GetType()}. Setting enabled to {e.IsConnected}");
+
+                ConnectedControllerInput = sender as UxrControllerInput;
+
+                if (UxrGlobalSettings.Instance.LogLevelDevices >= UxrLogLevel.Relevant)
+                {
+                    Debug.Log($"{UxrConstants.DevicesModule} Found compatible tracking component {GetType()}. Setting enabled to {e.IsConnected}");
+                }
+
                 enabled = e.IsConnected;
                 OnDeviceConnected(e);
             }
@@ -243,6 +247,30 @@ namespace UltimateXR.Devices
         #region Protected Methods
 
         /// <summary>
+        ///     A helper method for <see cref="SetupSensorInternal" />.
+        /// </summary>
+        /// <param name="side">Which hand to set up the sensor for</param>
+        /// <param name="sensorTransform">The sensor position</param>
+        protected void SetupSensor(UxrHandSide side, Transform sensorTransform)
+        {
+            if (side == UxrHandSide.Left && !SetupSensorInternal(sensorTransform, Avatar.LeftHandBone, out _localSensorLeftHandPos, out _localSensorLeftHandRot))
+            {
+                if (UxrGlobalSettings.Instance.LogLevelDevices >= UxrLogLevel.Warnings)
+                {
+                    Debug.LogWarning($"{UxrConstants.DevicesModule} {name}: Avatar Rig has no left wrist setup or left sensor was not specified in the tracking component. Avatar's left hand position may not be updated.");
+                }
+            }
+
+            if (side == UxrHandSide.Right && !SetupSensorInternal(sensorTransform, Avatar.RightHandBone, out _localSensorRightHandPos, out _localSensorRightHandRot))
+            {
+                if (UxrGlobalSettings.Instance.LogLevelDevices >= UxrLogLevel.Warnings)
+                {
+                    Debug.LogWarning($"{UxrConstants.DevicesModule} {name}: Avatar Rig has no right wrist setup or right sensor was not specified in the tracking component. Avatar's right hand position may not be updated.");
+                }
+            }
+        }
+
+        /// <summary>
         ///     Updates the sensor data of an XR controller, using smoothing if required.
         /// </summary>
         /// <param name="side">Which side the sensor belongs to</param>
@@ -252,20 +280,8 @@ namespace UltimateXR.Devices
         {
             if (side == UxrHandSide.Left)
             {
-                if (_smoothUnscaledTime)
-                {
-                    LocalAvatarLeftHandSensorPos = UxrInterpolator.SmoothDampPositionUnscaled(_lastLeftSensorLocalPos, 
-                        localPos, _leftSensorInitialized ? _smoothPosition : 0.0f);
-                    LocalAvatarLeftHandSensorRot = UxrInterpolator.SmoothDampRotationUnscaled(_lastLeftSensorLocalRot, 
-                        localRot, _leftSensorInitialized ? _smoothRotation : 0.0f);
-                }
-                else
-                {
-                    LocalAvatarLeftHandSensorPos = UxrInterpolator.SmoothDampPosition(_lastLeftSensorLocalPos, 
-                        localPos, _leftSensorInitialized ? _smoothPosition : 0.0f);
-                    LocalAvatarLeftHandSensorRot = UxrInterpolator.SmoothDampRotation(_lastLeftSensorLocalRot, 
-                        localRot, _leftSensorInitialized ? _smoothRotation : 0.0f);
-                }
+                LocalAvatarLeftHandSensorPos = UxrInterpolator.SmoothDampPosition(_lastLeftSensorLocalPos, localPos, _leftSensorInitialized ? _smoothPosition : 0.0f);
+                LocalAvatarLeftHandSensorRot = UxrInterpolator.SmoothDampRotation(_lastLeftSensorLocalRot, localRot, _leftSensorInitialized ? _smoothRotation : 0.0f);
 
                 _leftSensorInitialized  = true;
                 _lastLeftSensorLocalPos = LocalAvatarLeftHandSensorPos;
@@ -273,20 +289,8 @@ namespace UltimateXR.Devices
             }
             else if (side == UxrHandSide.Right)
             {
-                if (_smoothUnscaledTime)
-                {
-                    LocalAvatarRightHandSensorPos = UxrInterpolator.SmoothDampPositionUnscaled(_lastRightSensorLocalPos,
-                        localPos, _rightSensorInitialized ? _smoothPosition : 0.0f);
-                    LocalAvatarRightHandSensorRot = UxrInterpolator.SmoothDampRotationUnscaled(_lastRightSensorLocalRot,
-                        localRot, _rightSensorInitialized ? _smoothRotation : 0.0f);
-                }
-                else
-                {
-                    LocalAvatarRightHandSensorPos = UxrInterpolator.SmoothDampPosition(_lastRightSensorLocalPos,
-                        localPos, _rightSensorInitialized ? _smoothPosition : 0.0f);
-                    LocalAvatarRightHandSensorRot = UxrInterpolator.SmoothDampRotation(_lastRightSensorLocalRot,
-                        localRot, _rightSensorInitialized ? _smoothRotation : 0.0f);
-                }
+                LocalAvatarRightHandSensorPos = UxrInterpolator.SmoothDampPosition(_lastRightSensorLocalPos, localPos, _rightSensorInitialized ? _smoothPosition : 0.0f);
+                LocalAvatarRightHandSensorRot = UxrInterpolator.SmoothDampRotation(_lastRightSensorLocalRot, localRot, _rightSensorInitialized ? _smoothRotation : 0.0f);
 
                 _rightSensorInitialized  = true;
                 _lastRightSensorLocalPos = LocalAvatarRightHandSensorPos;
@@ -348,8 +352,8 @@ namespace UltimateXR.Devices
         }
 
         /// <summary>
-        ///     The goal of each left and right sensors is to position the visual hand in the correct position. This method
-        ///     computes the initial bone position and rotation in local sensor coordinates in order to be able to reposition the
+        ///     The goal of each left and right sensor is to position the visual hand in the correct position. This method
+        ///     computes the initial bone position and rotation in local sensor coordinates to be able to reposition the
         ///     hand whenever the sensors get updated.
         /// </summary>
         /// <param name="sensorTransform">The given sensor's transform</param>
@@ -357,22 +361,20 @@ namespace UltimateXR.Devices
         /// <param name="localBonePos">Gets the bone position in local coordinates of the sensor transform</param>
         /// <param name="localBoneRot">Gets the bone rotation in local coordinates of the sensor transform</param>
         /// <returns></returns>
-        private bool SetupSensor(Transform sensorTransform, Transform boneTransform, ref Vector3 localBonePos, ref Quaternion localBoneRot)
+        private bool SetupSensorInternal(Transform sensorTransform, Transform boneTransform, out Vector3 localBonePos, out Quaternion localBoneRot)
         {
-            if (sensorTransform != null)
+            localBonePos = Vector3.zero;
+            localBoneRot = Quaternion.identity;
+
+            if (sensorTransform == null || boneTransform == null)
             {
-                if (boneTransform != null)
-                {
-                    localBonePos = sensorTransform.InverseTransformPoint(boneTransform.position);
-                    localBoneRot = Quaternion.Inverse(sensorTransform.rotation) * boneTransform.rotation;
-
-                    return true;
-                }
-
                 return false;
             }
 
-            return false;
+            localBonePos = sensorTransform.InverseTransformPoint(boneTransform.position);
+            localBoneRot = Quaternion.Inverse(sensorTransform.rotation) * boneTransform.rotation;
+
+            return true;
         }
 
         #endregion
@@ -380,38 +382,72 @@ namespace UltimateXR.Devices
         #region Protected Types & Data
 
         /// <summary>
-        ///     Gets if the avatar's left hand needs to be updated each time we get new sensor data for it
+        ///     Gets the transform of the left controller's sensor. This is the place in the controller prefab that is considered
+        ///     when querying about a controller position/rotation. This is used by the native SDKs; when using OpenXR, it has been
+        ///     replaced by the Grip and Aim positions/orientations.
         /// </summary>
-        protected bool UpdateAvatarLeftHand => _updateAvatarLeftHand;
+        protected Transform LeftHandSensor => _leftHandSensor;
 
         /// <summary>
-        ///     Gets if the avatar's right hand needs to be updated each time we get new sensor data for it
+        ///     Gets the transform of the right controller's sensor. This is the place in the controller prefab that is considered
+        ///     when querying about a controller position/rotation. This is used by the native SDKs; when using OpenXR, it has been
+        ///     replaced by the Grip and Aim positions/orientations.
         /// </summary>
-        protected bool UpdateAvatarRightHand => _updateAvatarRightHand;
+        protected Transform RightHandSensor => _rightHandSensor;
 
         /// <summary>
-        ///     The left hand sensor position in local avatar coordinates
+        ///     Gets the transform of the left controller's aim. This is the place in the controller prefab that tells where the
+        ///     controller is pointing, used by the OpenXR implementation.
         /// </summary>
-        protected Vector3 LocalAvatarLeftHandSensorPos { get; private set; }
+        protected Transform LeftHandOpenXRAim => _leftHandOpenXRAim;
 
         /// <summary>
-        ///     The left hand sensor rotation in local avatar coordinates
+        ///     Gets the transform of the right controller's aim. This is the place in the controller prefab that tells where the
+        ///     controller is pointing, used by the OpenXR implementation.
         /// </summary>
-        protected Quaternion LocalAvatarLeftHandSensorRot { get; private set; }
+        protected Transform RightHandOpenXRAim => _rightHandOpenXRAim;
 
         /// <summary>
-        ///     The right hand sensor position in local avatar coordinates
+        ///     Gets the transform of the left controller's grip. This is the place in the controller prefab that tells where the
+        ///     user is holding the controller, used by the OpenXR implementation.
         /// </summary>
-        protected Vector3 LocalAvatarRightHandSensorPos { get; private set; }
+        protected Transform LeftHandOpenXRGrip => _leftHandOpenXRGrip;
 
         /// <summary>
-        ///     The right hand sensor rotation in local avatar coordinates
+        ///     Gets the transform of the right controller's grip. This is the place in the controller prefab that tells where the
+        ///     user is holding the controller, used by the OpenXR implementation.
         /// </summary>
-        protected Quaternion LocalAvatarRightHandSensorRot { get; private set; }
+        protected Transform RightHandOpenXRGrip => _rightHandOpenXRGrip;
+
+        /// <summary>
+        ///     Gets the <see cref="UxrControllerInput" /> this tracking corresponds to. It's only available after the controller
+        ///     gets connected.
+        /// </summary>
+        protected UxrControllerInput ConnectedControllerInput { get; private set; }
 
         #endregion
 
         #region Private Types & Data
+
+        /// <summary>
+        ///     Gets the left-hand sensor position in local avatar coordinates
+        /// </summary>
+        private Vector3 LocalAvatarLeftHandSensorPos { get; set; }
+
+        /// <summary>
+        ///     Gets the left-hand sensor rotation in local avatar coordinates
+        /// </summary>
+        private Quaternion LocalAvatarLeftHandSensorRot { get; set; }
+
+        /// <summary>
+        ///     Gets the right-hand sensor position in local avatar coordinates
+        /// </summary>
+        private Vector3 LocalAvatarRightHandSensorPos { get; set; }
+
+        /// <summary>
+        ///     Gets the right-hand sensor rotation in local avatar coordinates
+        /// </summary>
+        private Quaternion LocalAvatarRightHandSensorRot { get; set; }
 
         private bool       _cameraInitialized;
         private Vector3    _localSensorLeftHandPos;

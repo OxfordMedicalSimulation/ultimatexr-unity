@@ -6,6 +6,7 @@
 using System.Collections.Generic;
 using System.Linq;
 using UltimateXR.Core;
+using UltimateXR.Core.Settings;
 using UltimateXR.Haptics;
 using UnityEngine;
 using UnityEngine.XR;
@@ -24,19 +25,14 @@ namespace UltimateXR.Devices.Integrations
         #region Public Types & Data
 
         /// <summary>
-        ///     Gets list of controller names that the component can handle
+        ///     Gets the left input device, if available.
         /// </summary>
-        public abstract IEnumerable<string> ControllerNames { get; }
+        public InputDevice LeftDevice => _deviceLeft;
 
         /// <summary>
-        ///     We use this when we are implementing new controllers that we don't know the name of, in order to
-        ///     show the controller names in the UxrDebugControllerPanel.
-        ///     Returning true will register the controllers in <see cref="InputDevices_DeviceConnected" /> no
-        ///     matter which input device gets connected. Then using the UxrDebugControllerPanel we can see which
-        ///     devices got connected.
-        ///     This is mostly useful for untethered devices that cannot be tested directly in Unity.
+        ///     Gets the right input device, if available.
         /// </summary>
-        public virtual bool ForceUseAlways => false;
+        public InputDevice RightDevice => _deviceRight;
 
         #endregion
 
@@ -177,7 +173,12 @@ namespace UltimateXR.Devices.Integrations
                 return;
             }
 
-            if (hapticClip.Clip == null)
+            if (!inputDevice.TryGetHapticCapabilities(out HapticCapabilities hapticCapabilities))
+            {
+                return;
+            }
+
+            if (hapticClip.Clip == null || !hapticCapabilities.supportsBuffer)
             {
                 SendHapticFeedback(handSide,
                                    hapticClip.FallbackClipType,
@@ -187,21 +188,21 @@ namespace UltimateXR.Devices.Integrations
                 return;
             }
 
-            if (!inputDevice.TryGetHapticCapabilities(out HapticCapabilities hapticCapabilities) || hapticCapabilities.numChannels == 0)
-            {
-                return;
-            }
-
             // Create haptics clip from audio
             byte[] hapticBuffer = CreateHapticBufferFromAudioClip(inputDevice, hapticClip.Clip);
 
             if (hapticBuffer == null)
             {
+                SendHapticFeedback(handSide,
+                                   hapticClip.FallbackClipType,
+                                   hapticClip.FallbackAmplitude,
+                                   hapticClip.FallbackDurationSeconds,
+                                   hapticClip.HapticMode);
                 return;
             }
 
             // Readjust amplitude?
-            if (Mathf.Approximately(hapticClip.ClipAmplitude, 1.0f) == false)
+            if (!Mathf.Approximately(hapticClip.ClipAmplitude, 1.0f))
             {
                 for (int i = 0; i < hapticBuffer.Length; ++i)
                 {
@@ -212,7 +213,7 @@ namespace UltimateXR.Devices.Integrations
             // Send using replace or mix
             uint channel = 0;
 
-            if (hapticClip.HapticMode == UxrHapticMode.Mix)
+            if (hapticClip.HapticMode == UxrHapticMode.Mix && hapticCapabilities.numChannels > 0)
             {
                 if (handSide == UxrHandSide.Left)
                 {
@@ -250,7 +251,7 @@ namespace UltimateXR.Devices.Integrations
                 return;
             }
 
-            if (!inputDevice.TryGetHapticCapabilities(out HapticCapabilities hapticCapabilities) || hapticCapabilities.numChannels == 0)
+            if (!inputDevice.TryGetHapticCapabilities(out HapticCapabilities hapticCapabilities))
             {
                 return;
             }
@@ -258,7 +259,7 @@ namespace UltimateXR.Devices.Integrations
             // Setup using replace or mix
             uint channel = 0;
 
-            if (hapticMode == UxrHapticMode.Mix)
+            if (hapticMode == UxrHapticMode.Mix && hapticCapabilities.numChannels > 0)
             {
                 if (handSide == UxrHandSide.Left)
                 {
@@ -343,24 +344,38 @@ namespace UltimateXR.Devices.Integrations
                 // Check if the device is already connected. This may happen if a new scene was loaded, because
                 // the connection events were already triggered and processed. We should have them registered in
                 // our static fields.
-                _deviceLeft  = s_activeInputDevices.FirstOrDefault(d => ControllerNames.Any(n => string.Equals(d.name, n)) && IsLeftController(d));
-                _deviceRight = s_activeInputDevices.FirstOrDefault(d => ControllerNames.Any(n => string.Equals(d.name, n)) && IsRightController(d));
+                _deviceLeft  = s_activeInputDevices.FirstOrDefault(d => IsSupportedController(d.name) && IsLeftController(d));
+                _deviceRight = s_activeInputDevices.FirstOrDefault(d => IsSupportedController(d.name) && IsRightController(d));
 
                 List<InputDevice> devices = new List<InputDevice>();
                 InputDevices.GetDevices(devices);
 
                 if (!_deviceLeft.isValid)
                 {
-                    _deviceLeft = devices.FirstOrDefault(d => ControllerNames.Any(n => string.Equals(d.name, n)) && IsLeftController(d));
+                    _deviceLeft = devices.FirstOrDefault(d => IsSupportedController(d.name) && IsLeftController(d));
                 }
 
                 if (!_deviceRight.isValid)
                 {
-                    _deviceRight = devices.FirstOrDefault(d => ControllerNames.Any(n => string.Equals(d.name, n)) && IsRightController(d));
+                    _deviceRight = devices.FirstOrDefault(d => IsSupportedController(d.name) && IsRightController(d));
                 }
 
-                enabled             = _deviceLeft.isValid || _deviceRight.isValid;
-                RaiseConnectOnStart = enabled;
+                enabled = _deviceLeft.isValid || _deviceRight.isValid;
+
+                if (enabled)
+                {
+                    RaiseConnectOnStartEvents = new List<UxrDeviceConnectEventArgs>();
+
+                    if (_deviceLeft.isValid)
+                    {
+                        RaiseConnectOnStartEvents.Add(new UxrControllerConnectEventArgs(true, _deviceLeft.name, true, UxrHandSide.Left));
+                    }
+                    
+                    if (_deviceRight.isValid)
+                    {
+                        RaiseConnectOnStartEvents.Add(new UxrControllerConnectEventArgs(true, _deviceRight.name, true, UxrHandSide.Right));
+                    }
+                }
             }
         }
 
@@ -386,37 +401,40 @@ namespace UltimateXR.Devices.Integrations
         private void InputDevices_DeviceConnected(InputDevice inputDevice)
         {
             // Check if device is compatible with component
-            if (ForceUseAlways || ControllerNames.Any(n => string.Equals(n, inputDevice.name)))
+            if (ForceUseAlways || IsSupportedController(inputDevice.name))
             {
                 // Found compatible device. Look for features.
                 List<InputFeatureUsage> listFeatures = new List<InputFeatureUsage>();
 
-                bool isController = false;
+                UxrHandSide handSide     = UxrHandSide.Left;
+                bool        isController = false;
 
                 // Check for controllers and side
                 if (IsLeftController(inputDevice))
                 {
                     // Left controller
 
-                    if (LogLevel >= UxrLogLevel.Relevant)
+                    if (UxrGlobalSettings.Instance.LogLevelDevices >= UxrLogLevel.Relevant)
                     {
-                        Debug.Log($"{InputClassName}::{nameof(InputDevices_DeviceConnected)}: Device name {inputDevice.name} was registered by {InputClassName} and is being processed as left controller. InputDevice.isValid={inputDevice.isValid}");
+                        Debug.Log($"{UxrConstants.DevicesModule} {InputClassName}::{nameof(InputDevices_DeviceConnected)}: Device name {inputDevice.name} was registered by {InputClassName} and is being processed as left controller. InputDevice.isValid={inputDevice.isValid}");
                     }
 
                     _deviceLeft  = inputDevice;
+                    handSide     = UxrHandSide.Left;
                     isController = true;
                 }
                 else if (IsRightController(inputDevice))
                 {
                     // Right controller
 
-                    if (LogLevel >= UxrLogLevel.Relevant)
+                    if (UxrGlobalSettings.Instance.LogLevelDevices >= UxrLogLevel.Relevant)
                     {
-                        Debug.Log($"{InputClassName}::{nameof(InputDevices_DeviceConnected)}: Device name {inputDevice.name} was registered by {InputClassName} and is being processed as right controller. InputDevice.isValid={inputDevice.isValid}");
+                        Debug.Log($"{UxrConstants.DevicesModule} {InputClassName}::{nameof(InputDevices_DeviceConnected)}: Device name {inputDevice.name} was registered by {InputClassName} and is being processed as right controller. InputDevice.isValid={inputDevice.isValid}");
                     }
 
-                    _deviceRight  = inputDevice;
-                    isController  = true;
+                    _deviceRight = inputDevice;
+                    handSide     = UxrHandSide.Right;
+                    isController = true;
                 }
 
                 if (isController)
@@ -426,10 +444,12 @@ namespace UltimateXR.Devices.Integrations
 
                     if (!enabled)
                     {
-                        // Component is disabled. Enable it and send Connected event.
+                        // Component is disabled. Enable it.
                         enabled = true;
-                        OnDeviceConnected(new UxrDeviceConnectEventArgs(true));
                     }
+
+                    // Send Connected event.
+                    OnDeviceConnected(new UxrControllerConnectEventArgs(true, inputDevice.name, true, handSide));
                 }
             }
             else
@@ -438,19 +458,19 @@ namespace UltimateXR.Devices.Integrations
                 if (IsLeftController(inputDevice))
                 {
                     // Left controller
-                    
-                    if (LogLevel >= UxrLogLevel.Relevant)
+
+                    if (UxrGlobalSettings.Instance.LogLevelDevices >= UxrLogLevel.Relevant)
                     {
-                        Debug.Log($"{InputClassName}::{nameof(InputDevices_DeviceConnected)}: Left device connected unknown: {inputDevice.name}. InputDevice.isValid={inputDevice.isValid}");
+                        Debug.Log($"{UxrConstants.DevicesModule} {InputClassName}::{nameof(InputDevices_DeviceConnected)}: Left device connected unknown: {inputDevice.name}. InputDevice.isValid={inputDevice.isValid}");
                     }
                 }
                 else if (IsRightController(inputDevice))
                 {
                     // Right controller
-                    
-                    if (LogLevel >= UxrLogLevel.Relevant)
+
+                    if (UxrGlobalSettings.Instance.LogLevelDevices >= UxrLogLevel.Relevant)
                     {
-                        Debug.Log($"{InputClassName}::{nameof(InputDevices_DeviceConnected)}: Right device connected unknown: {inputDevice.name}. InputDevice.isValid={inputDevice.isValid}");
+                        Debug.Log($"{UxrConstants.DevicesModule} {InputClassName}::{nameof(InputDevices_DeviceConnected)}: Right device connected unknown: {inputDevice.name}. InputDevice.isValid={inputDevice.isValid}");
                     }
                 }
             }
@@ -465,23 +485,27 @@ namespace UltimateXR.Devices.Integrations
             // Check if device is compatible with component
             if (ForceUseAlways || ControllerNames.Any(n => string.Equals(n, inputDevice.name)))
             {
-                if (string.Equals(inputDevice.serialNumber, _deviceLeft.serialNumber) || string.Equals(inputDevice.serialNumber, _deviceRight.serialNumber))
+                bool isLeft  = string.Equals(inputDevice.serialNumber, _deviceLeft.serialNumber);
+                bool isRight = string.Equals(inputDevice.serialNumber, _deviceRight.serialNumber);
+                
+                if (isLeft || isRight)
                 {
-                    if (LogLevel >= UxrLogLevel.Relevant)
+                    if (UxrGlobalSettings.Instance.LogLevelDevices >= UxrLogLevel.Relevant)
                     {
-                        Debug.Log($"{InputClassName}::{nameof(InputDevices_DeviceDisconnected)}: Device name {inputDevice.name} was registered by {InputClassName} and is being disconnected. InputDevice.isValid={inputDevice.isValid}");
+                        Debug.Log($"{UxrConstants.DevicesModule} {InputClassName}::{nameof(InputDevices_DeviceDisconnected)}: Device name {inputDevice.name} was registered by {InputClassName} and is being disconnected. InputDevice.isValid={inputDevice.isValid}");
                     }
                 }
 
                 // Unregister device
                 s_activeInputDevices.RemoveAll(i => string.Equals(i.name, inputDevice.name));
 
-                // If last device was disconnected, disable component. Component will be re-enabled using connection event.
+                // If the last device was disconnected, disable component. Component will be re-enabled using connection event.
                 if (enabled && !_deviceLeft.isValid && !_deviceRight.isValid)
                 {
                     enabled = false;
-                    OnDeviceConnected(new UxrDeviceConnectEventArgs(false));
                 }
+
+                OnDeviceConnected(new UxrControllerConnectEventArgs(false, inputDevice.name, false, isLeft ? UxrHandSide.Left : UxrHandSide.Right));
             }
         }
 
@@ -490,7 +514,7 @@ namespace UltimateXR.Devices.Integrations
         #region Protected Overrides UxrControllerInput
 
         /// <summary>
-        ///     Updates the input state. This should not be called by the user since it is called by the framework already.
+        ///     Updates the input state. The user should not call this since it is called by the framework already.
         /// </summary>
         protected override void UpdateInput()
         {
@@ -610,11 +634,12 @@ namespace UltimateXR.Devices.Integrations
             if (leftJoystick != Vector2.zero && leftJoystick.magnitude > AnalogAsDPadThreshold)
             {
                 float joystickAngle = Input2DToAngle(leftJoystick);
+                bool  touchPadFix   = !MainJoystickIsTouchpad || buttonPressJoystickLeft;
 
-                SetButtonFlags(ButtonFlags.PressFlagsLeft, UxrInputButtons.JoystickLeft,  IsInput2dDPadLeft(joystickAngle));
-                SetButtonFlags(ButtonFlags.PressFlagsLeft, UxrInputButtons.JoystickRight, IsInput2dDPadRight(joystickAngle));
-                SetButtonFlags(ButtonFlags.PressFlagsLeft, UxrInputButtons.JoystickUp,    IsInput2dDPadUp(joystickAngle));
-                SetButtonFlags(ButtonFlags.PressFlagsLeft, UxrInputButtons.JoystickDown,  IsInput2dDPadDown(joystickAngle));
+                SetButtonFlags(ButtonFlags.PressFlagsLeft, UxrInputButtons.JoystickLeft,  touchPadFix && IsInput2dDPadLeft(joystickAngle));
+                SetButtonFlags(ButtonFlags.PressFlagsLeft, UxrInputButtons.JoystickRight, touchPadFix && IsInput2dDPadRight(joystickAngle));
+                SetButtonFlags(ButtonFlags.PressFlagsLeft, UxrInputButtons.JoystickUp,    touchPadFix && IsInput2dDPadUp(joystickAngle));
+                SetButtonFlags(ButtonFlags.PressFlagsLeft, UxrInputButtons.JoystickDown,  touchPadFix && IsInput2dDPadDown(joystickAngle));
             }
             else
             {
@@ -626,12 +651,13 @@ namespace UltimateXR.Devices.Integrations
 
             if (leftDPad != Vector2.zero && leftDPad.magnitude > AnalogAsDPadThreshold)
             {
-                float dPadAngle = Input2DToAngle(leftDPad);
+                float dPadAngle   = Input2DToAngle(leftDPad);
+                bool  touchPadFix = !MainJoystickIsTouchpad || buttonPressJoystickLeft;
 
-                SetButtonFlags(ButtonFlags.PressFlagsLeft, UxrInputButtons.DPadLeft,  IsInput2dDPadLeft(dPadAngle));
-                SetButtonFlags(ButtonFlags.PressFlagsLeft, UxrInputButtons.DPadRight, IsInput2dDPadRight(dPadAngle));
-                SetButtonFlags(ButtonFlags.PressFlagsLeft, UxrInputButtons.DPadUp,    IsInput2dDPadUp(dPadAngle));
-                SetButtonFlags(ButtonFlags.PressFlagsLeft, UxrInputButtons.DPadDown,  IsInput2dDPadDown(dPadAngle));
+                SetButtonFlags(ButtonFlags.PressFlagsLeft, UxrInputButtons.DPadLeft,  touchPadFix && IsInput2dDPadLeft(dPadAngle));
+                SetButtonFlags(ButtonFlags.PressFlagsLeft, UxrInputButtons.DPadRight, touchPadFix && IsInput2dDPadRight(dPadAngle));
+                SetButtonFlags(ButtonFlags.PressFlagsLeft, UxrInputButtons.DPadUp,    touchPadFix && IsInput2dDPadUp(dPadAngle));
+                SetButtonFlags(ButtonFlags.PressFlagsLeft, UxrInputButtons.DPadDown,  touchPadFix && IsInput2dDPadDown(dPadAngle));
             }
             else
             {
@@ -647,11 +673,12 @@ namespace UltimateXR.Devices.Integrations
             if (rightJoystick != Vector2.zero && rightJoystick.magnitude > AnalogAsDPadThreshold)
             {
                 float joystickAngle = Input2DToAngle(rightJoystick);
+                bool  touchPadFix   = !MainJoystickIsTouchpad || buttonPressJoystickRight;
 
-                SetButtonFlags(ButtonFlags.PressFlagsRight, UxrInputButtons.JoystickLeft,  IsInput2dDPadLeft(joystickAngle));
-                SetButtonFlags(ButtonFlags.PressFlagsRight, UxrInputButtons.JoystickRight, IsInput2dDPadRight(joystickAngle));
-                SetButtonFlags(ButtonFlags.PressFlagsRight, UxrInputButtons.JoystickUp,    IsInput2dDPadUp(joystickAngle));
-                SetButtonFlags(ButtonFlags.PressFlagsRight, UxrInputButtons.JoystickDown,  IsInput2dDPadDown(joystickAngle));
+                SetButtonFlags(ButtonFlags.PressFlagsRight, UxrInputButtons.JoystickLeft,  touchPadFix && IsInput2dDPadLeft(joystickAngle));
+                SetButtonFlags(ButtonFlags.PressFlagsRight, UxrInputButtons.JoystickRight, touchPadFix && IsInput2dDPadRight(joystickAngle));
+                SetButtonFlags(ButtonFlags.PressFlagsRight, UxrInputButtons.JoystickUp,    touchPadFix && IsInput2dDPadUp(joystickAngle));
+                SetButtonFlags(ButtonFlags.PressFlagsRight, UxrInputButtons.JoystickDown,  touchPadFix && IsInput2dDPadDown(joystickAngle));
             }
             else
             {
@@ -663,12 +690,13 @@ namespace UltimateXR.Devices.Integrations
 
             if (rightDPad != Vector2.zero && rightDPad.magnitude > AnalogAsDPadThreshold)
             {
-                float dPadAngle = Input2DToAngle(rightDPad);
+                float dPadAngle   = Input2DToAngle(rightDPad);
+                bool  touchPadFix = !MainJoystickIsTouchpad || buttonPressJoystickRight;
 
-                SetButtonFlags(ButtonFlags.PressFlagsRight, UxrInputButtons.DPadLeft,  IsInput2dDPadLeft(dPadAngle));
-                SetButtonFlags(ButtonFlags.PressFlagsRight, UxrInputButtons.DPadRight, IsInput2dDPadRight(dPadAngle));
-                SetButtonFlags(ButtonFlags.PressFlagsRight, UxrInputButtons.DPadUp,    IsInput2dDPadUp(dPadAngle));
-                SetButtonFlags(ButtonFlags.PressFlagsRight, UxrInputButtons.DPadDown,  IsInput2dDPadDown(dPadAngle));
+                SetButtonFlags(ButtonFlags.PressFlagsRight, UxrInputButtons.DPadLeft,  touchPadFix && IsInput2dDPadLeft(dPadAngle));
+                SetButtonFlags(ButtonFlags.PressFlagsRight, UxrInputButtons.DPadRight, touchPadFix && IsInput2dDPadRight(dPadAngle));
+                SetButtonFlags(ButtonFlags.PressFlagsRight, UxrInputButtons.DPadUp,    touchPadFix && IsInput2dDPadUp(dPadAngle));
+                SetButtonFlags(ButtonFlags.PressFlagsRight, UxrInputButtons.DPadDown,  touchPadFix && IsInput2dDPadDown(dPadAngle));
             }
             else
             {
@@ -682,6 +710,15 @@ namespace UltimateXR.Devices.Integrations
         #endregion
 
         #region Protected Methods
+
+        /// <summary>
+        ///     Checks whether the component supports the given controller name.
+        /// </summary>
+        /// <returns>Whether the controller name is supported</returns>
+        protected virtual bool IsSupportedController(string deviceName)
+        {
+            return ControllerNames.Any(n => string.Equals(deviceName, n));
+        }
 
         /// <summary>
         ///     Checks whether a non-standard button in a controller is currently being touched or pressed.
@@ -720,7 +757,12 @@ namespace UltimateXR.Devices.Integrations
             float[] audioData = new float[audioClip.samples * audioClip.channels];
             audioClip.GetData(audioData, 0);
 
-            if (!inputDevice.TryGetHapticCapabilities(out HapticCapabilities hapticCapabilities))
+            if (!inputDevice.TryGetHapticCapabilities(out HapticCapabilities hapticCapabilities) || !hapticCapabilities.supportsBuffer)
+            {
+                return null;
+            }
+
+            if (hapticCapabilities.bufferFrequencyHz == 0)
             {
                 return null;
             }
@@ -816,7 +858,7 @@ namespace UltimateXR.Devices.Integrations
             }
             else if (button == UxrInputButtons.Joystick2)
             {
-
+                return false;
             }
             else if (button == UxrInputButtons.Trigger)
             {
@@ -833,7 +875,7 @@ namespace UltimateXR.Devices.Integrations
                 if (inputDevice.TryGetFeatureValue(CommonUsages.trigger, out float valueFloat))
                 {
                     // We try getting the float value first because in analog buttons like the oculus it will trigger too early with the bool version.
-                    return valueFloat > ButtonPressThreshold;
+                    return valueFloat > AnalogAsDPadThreshold;
                 }
 
                 if (inputDevice.TryGetFeatureValue(CommonUsages.triggerButton, out bool value))
@@ -843,7 +885,7 @@ namespace UltimateXR.Devices.Integrations
             }
             else if (button == UxrInputButtons.Trigger2)
             {
-
+                return false;
             }
             else if (button == UxrInputButtons.Grip)
             {
@@ -910,8 +952,27 @@ namespace UltimateXR.Devices.Integrations
             {
             }
 
-            return HasButtonContactOther(handSide, button, buttonContact);
+            return false;
         }
+
+        #endregion
+
+        #region Protected Types & Data
+
+        /// <summary>
+        ///     Gets list of controller names that the component can handle
+        /// </summary>
+        protected abstract IEnumerable<string> ControllerNames { get; }
+
+        /// <summary>
+        ///     We use this when we are implementing new controllers that we don't know the name of, in order to
+        ///     show the controller names in the UxrDebugControllerPanel.
+        ///     Returning true will register the controllers in <see cref="InputDevices_DeviceConnected" /> no
+        ///     matter which input device gets connected. Then using the UxrDebugControllerPanel we can see which
+        ///     devices got connected.
+        ///     This is mostly useful for untethered devices that cannot be tested directly in Unity.
+        /// </summary>
+        protected virtual bool ForceUseAlways => false;
 
         #endregion
 

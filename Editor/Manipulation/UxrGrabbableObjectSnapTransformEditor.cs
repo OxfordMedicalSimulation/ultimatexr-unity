@@ -14,6 +14,7 @@ using UltimateXR.Manipulation;
 using UltimateXR.Manipulation.HandPoses;
 using UnityEditor;
 using UnityEngine;
+using UnityEngine.SceneManagement;
 
 namespace UltimateXR.Editor.Manipulation
 {
@@ -49,18 +50,41 @@ namespace UltimateXR.Editor.Manipulation
         /// <returns>New preview GameObject</returns>
         public static GameObject CreateAndSetupPreviewMeshObject(Transform parent, UxrPreviewHandGripMesh previewMesh, Mesh mesh, Material[] sharedMaterials)
         {
+            // Create child that the proxy will have to follow.
+
             GameObject grabPose = EditorUtility.CreateGameObjectWithHideFlags("GrabPose",
                                                                               HideFlags.HideAndDontSave,
-                                                                              typeof(UxrGrabbableObjectPreviewMesh),
-                                                                              typeof(MeshFilter),
-                                                                              typeof(MeshRenderer));
+                                                                              typeof(UxrGrabbableObjectPreviewMesh));
 
-            grabPose.transform.parent                                          = parent;
-            grabPose.transform.localPosition                                   = Vector3.zero;
-            grabPose.transform.localRotation                                   = Quaternion.identity;
-            grabPose.GetComponent<MeshFilter>().sharedMesh                     = mesh;
-            grabPose.GetComponent<MeshRenderer>().sharedMaterials              = sharedMaterials;
-            grabPose.GetComponent<UxrGrabbableObjectPreviewMesh>().PreviewMesh = previewMesh;
+            SceneManager.MoveGameObjectToScene(grabPose, parent.gameObject.scene);
+
+            grabPose.transform.position = parent.position;
+            grabPose.transform.rotation = parent.rotation;
+            grabPose.transform.SetParent(parent, true);
+
+            // Create proxy at root level that avoids non-uniform scaling problems.
+
+            GameObject grabPoseProxy = EditorUtility.CreateGameObjectWithHideFlags("GrabPoseProxy",
+                                                                                   HideFlags.HideAndDontSave,
+                                                                                   typeof(UxrGrabbableObjectPreviewMeshProxy),
+                                                                                   typeof(MeshFilter),
+                                                                                   typeof(MeshRenderer));
+
+            SceneManager.MoveGameObjectToScene(grabPoseProxy, parent.gameObject.scene);
+
+            grabPoseProxy.transform.position   = parent.position;
+            grabPoseProxy.transform.rotation   = parent.rotation;
+
+            grabPoseProxy.GetComponent<MeshFilter>().sharedMesh        = mesh;
+            grabPoseProxy.GetComponent<MeshRenderer>().sharedMaterials = sharedMaterials;
+
+            UxrGrabbableObjectPreviewMesh      previewMeshComponent = grabPose.GetComponent<UxrGrabbableObjectPreviewMesh>();
+            UxrGrabbableObjectPreviewMeshProxy proxyComponent       = grabPoseProxy.GetComponent<UxrGrabbableObjectPreviewMeshProxy>();
+
+            proxyComponent.PreviewMesh          = previewMesh;
+            proxyComponent.PreviewMeshComponent = previewMeshComponent;
+
+            previewMeshComponent.PreviewMeshProxy = proxyComponent;
 
             return grabPose;
         }
@@ -167,7 +191,7 @@ namespace UltimateXR.Editor.Manipulation
                         }
                     }
 
-                    UxrGrabber[] grabbers     = avatarForGrip.GetComponentsInChildren<UxrGrabber>();
+                    UxrGrabber[] grabbers     = avatarForGrip.GetComponentsInChildren<UxrGrabber>(true);
                     UxrGrabber   leftGrabber  = grabbers.FirstOrDefault(g => g.Side == UxrHandSide.Left);
                     UxrGrabber   rightGrabber = grabbers.FirstOrDefault(g => g.Side == UxrHandSide.Right);
                     UxrGrabber grabber = _previewMeshLeft != null  ? leftGrabber :
@@ -321,7 +345,7 @@ namespace UltimateXR.Editor.Manipulation
 
                 // Get grabber renderers which will be used to know which materials to use when rendering grab poses
 
-                UxrGrabber[] grabbers             = avatar.GetComponentsInChildren<UxrGrabber>(false);
+                UxrGrabber[] grabbers             = avatar.GetComponentsInChildren<UxrGrabber>(true);
                 Renderer     leftGrabberRenderer  = grabbers.FirstOrDefault(g => g.Side == UxrHandSide.Left && g.HandRenderer != null)?.HandRenderer;
                 Renderer     rightGrabberRenderer = grabbers.FirstOrDefault(g => g.Side == UxrHandSide.Right && g.HandRenderer != null)?.HandRenderer;
 

@@ -7,10 +7,207 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-- Soon v1.0.0 with full multiplayer support and tons of new features.
+### Added
+
+- Add native multiplayer support and connectors for various network SDKs
+  (Photon Fusion, Unity NetCode, Mirror) and voice communication SDKs
+  (Photon Voice, Dissonance). More connectors will be added soon.
+- Add UxrNetworkManager and UxrInstanceManager to provice sync capabilities.
+- Update SDK Manager window with new tabs for SDK types, including new multiplayer.
+- Add new GlobalSettings accessible using the Tools->UltimateXR Unity menu.
+- Add new unique ID functionality to UXR components. All components that inherit
+  from UxrComponent will have a unique ID that can be used with
+  UxrUniqueIdImplementer.TryGetComponentById().
+- Add new Unique ID generation tool to generate unique IDs for projects build with
+  earlier versions of UltimateXR.
+- Add IUxrUniqueId, IUxrStateSync and IUxrStateSave interfaces to UxrComponent to
+  facilitate multiplayer synchronization, serialization, state saves and replay
+  functionality in all UltimateXR components.
+- Add UxrUniqueIdImplementer, UxrStateSaveImplementer and UxrStateSyncImplementer
+  to leverage the interface implementation in custom user classes that cannot
+  inherit from UxrComponent due to multiple inheritance limitation.
+- Add functionality to UxrManager to save and load the scene state using
+  SaveStateChanges() and LoadStateChanges().
+- Add functionality to UxrManager to have a single point of entry to all component
+  state changes that require synchronization:
+  ComponentStateChanged event and ExecuteStateChange() method.
+- Add serialization/deserialization methods to all UxrComponent derived classes.
+- Add serialization/deserialization methods to all UxrSyncEventArgs.
+- Create UxrVarType to enumerate all supported var types that can be synchronized.
+- Add ToString() to all UxrSyncEventArgs to help data logging.
+- Add new property Options to UxrSyncEventArgs to tell whether the event should
+  be synchronized in different environments such as networks or replays.
+- Add new BinaryWriter and BinaryReader extensions with functionality to
+  serialize/deserialize Unity and UltimateXR data, as well as well-known
+  C# types.
+- Add new UxrBinarySerializer with binary serialization and deserialization support.
+- Add new UxrSyncObject component to identify objects that don't have any
+  UxrComponent added, so that they have a unique ID. Also to sync the Transform
+  of a GameObject if it's required and no other component does it already.
+- Add new interpolators to Math namespace to interpolate different types of
+  variables using optional smooth and step options.
+- Add support to solve manipulations on objects using an unlimited amount of
+  grabs to support multi-user shared interaction.
+- Add support to grab grabbable parent objects through grabbable children.
+- Add support for dummy grabbable parents. Dummy grabbable parents are grabbable
+  objects that can be manipulating only through the children, but still have
+  position/rotation constraints.
+- Add new functionality ForceSnapPosition and ForceSnapRotation to
+  UxrPlacementOptions to force snap even if the grabbable object isn't set up
+  that way.
+- Add new functionality in UxrGrabManager to move grabbable objects considering
+  constraints: SetLocalPositionUsingConstraints(), SetLocalRotationUsingConstraints(),
+  SetLocalPositionAndRotationUsingConstraints(), SetPositionUsingConstraints(),
+  SetRotationUsingConstraints() and SetPositionAndRotationUsingConstraints().  
+- Add new UxrAutoSlideInObject/Anchor components to provide built-in functionality
+  like how the battery in the example scene can be inserted/removed smoothly
+  from the generators.
+- Add new UxrGrabbableResizable component to provide functionality to create
+  objects that can be scaled by grabbing them from both sides.
+- Add new ComponentProcessorWindow editor base class to generate component
+  processors that can modify from single components to the whole project.
+- Add UxrEditorUtils.ProcessAllProjectComponents() functionality to process both
+  innermost and non-innermost prefab elements.
+- Add UxrEditorUtils.ModifyComponent() to perform changes to components in the
+  scene or project separately processing instances, prefab variants and original
+  prefabs.
+- Add automatic detection of UXR installation path.
+- Add new menus in Tools->UltimateXR.
+- Add PushTransform() and PopTransform() methods in UxrComponent to facilitate
+  saving and restoring transformation info.
+- Add new parameters to UxrColorTween.AnimateBlinkAlpha to support min alpha and
+  max alpha.
+- Add new PBR shader with a tinted mask. Use in cyborg avatar to color it.
+- Add new cabinet prefab to Lab in example scene to showcase grabbable parent dummies.
+- Expose properties in UxrTeleportSpawnCollider to have public access.
+- Add support for Meta Quest 3S.
+- Add partial avatar rendering support to show controllers together with selected
+  parts of the avatar body.
+- Add first-person hidden renderer support to hide avatar geometry from the local
+  camera while keeping it visible in mirrors, external cameras and remote views.
+- Add a redesigned wall fade system with inside-fade and inside-geometry state
+  tracking, portal-style visibility and out-of-bounds visual feedback.
+- Add OpenXR loader detection and improved OpenXR controller tracking support,
+  including aim/grip pose handling.
+- Add unique ID debug information support to help diagnose unresolved, invalid or
+  duplicated unique ID references.
+- Add network avatar support for initialization state, dummy network transforms
+  and network-safe hierarchy changes.
+- Add voice integration support for local microphone subscription state and active
+  remote voice source detection.
+- Add grabbable object lifecycle events in UxrGrabManager for registration,
+  unregistration, enabling and disabling.
+- Add explicit prefab lists to UxrInstanceManager to control which prefabs can be
+  instantiated at runtime.
+
+### Changed
+
+- Improve manipulation workflow to a system that is more scalable, robust and
+  solves the whole interaction process in different stages.
+- Separate UxrGrabManager in different files based on functionality.
+- Remove all properties from UxrApplyConstrainEventArgs leaving only GrabbableObject.
+  Constraints are applied on an object level so it doesn't make sense to use grabbers,
+  especially in multi-user environments.
+- Remove RequireComponent attribute from UxrGrabbableObjectComponent that forces
+  a UxrGrabbableObject component on the same GameObject. GrabbableObject can be
+  required or not depending on overridable property IsGrabbableObjectRequired.
+- Rename IsOwnershipChanged in UxrManipulationEventArgs to IsGrabbedStateChanged.
+- UxrGrabPointShape now gets additional grabberDistanceTransform to also use
+  non-default grabber proximity transforms.
+- Change how grabbable parenting works: Set to avatar's parent when grabbing and
+  to anchor's parent when removing from anchor without grabbing.
+- Move SDK constants from UxrManager to UxrConstants.
+- Move input/tracking SDK locators from UltimateXR/Editor/Sdks to
+  UltimateXR/Editor/Sdks/InputTracking.
+- Add teleportation validators to UxrTeleportLocomotionBase to create custom logic
+  for destination validation and cancel a teleportation.
+- Move AvatarMoving and AvatarMoved events to UxrAvatar as GlobalAvatarMoving and
+  GlobalAvatarMoved static events.
+- Change Teleported event in UxrTeleportSpawnCollider to use new
+  UxrTeleportSpawnUsedEventArgs parameter.
+- Change UxrComponent unique ID functionality so that IDs are generated in the
+  editor instead of using unique paths in scene with ComponentExt.GetUniqueScenePath().
+- Improve avatar arm rig reference solving for hierarchies with siblings in
+  the clavicle, upper arm or forearm.
+- Change GetUniqueScenePath in ComponentExt and TransformExt to make it cleaner.
+- Move AlignWindow, LookAtWindow and MirrorWindow tools to new namespace/folder in
+  Editor/Utilities/TransformUtils.
+- Improve UxrEditorUtils.Prefabs functionality.
+- Improve TaskControllers documentation and functionality.
+- Improve UxrLookAt component with new axis functionality.
+- Make UxrControllerTracking's properties UpdateAvatarLeftHand/UpdateAvatarRightHand
+  public instead of protected.
+- Allow UxrTeleportLocomotionBase to be disabled to ignore the component.
+- Replace the previous avatar render mode flags with clearer explicit avatar
+  render modes.
+- Redesign UxrCameraWallFade with separate fade and geometry states, replacing
+  the previous wall/peeking terminology.
+- Change avatar event args to use pooled event arguments to reduce runtime
+  allocations.
+- Change SerializeState() so state serialization versions are handled separately
+  through SerializeStateVersion().
+- Rename unique ID serialization and global ID APIs to use clearer UniqueId
+  terminology.
+- Change UxrInstanceManager so it no longer auto-registers every prefab. Prefabs
+  that can be instantiated should now be registered through user-defined prefab
+  lists, preventing unwanted prefab references from being included in builds.
+- Improve locomotion collision checks so they better account for body colliders,
+  grabbed objects and different locomotion validation purposes.
+- Improve manipulation APIs to reduce allocations and better support constrained
+  motion, multi-user interaction and reusable query buffers.
+- Change UxrReturnGrabbableObject default return behavior from LastAnchor to
+  MostRecentAnchor.
+- Update network and voice abstraction APIs to better support multiple networking
+  and voice backends.
+
+### Fixed
+
+- Fix UxrCameraPointer's ClickInput to Everything by default instead of None to avoid
+  clicking each frame.
+- Fix bug in UxrPointerInputModule that prevents pointer up notifications being
+  generated when the finger tip/pointer is dragged out of the UI.
+- Fix child dependent grabbable objects not being dynamic when releasing.
+- Fix bug in avatar IK where the coordinate system of clavicles/upperarm/forearm
+  is inferred erroneously. Arms can look twisted.
+- Fix bug in standard avatar controller inspector when clicking Use Avatar Eyes.
+- Fix bug in UxrManager to avoid pre-caching multiple times when client network
+  avatars are instantiated.
+- Fix bug in UxrManager where aync versions of teleport cause an await() to wait
+  indefinitely when overlapping more than one teleport at the same time.
+- Fix bug in UxrTeleportSpawnCollider that throws null reference exceptions when
+  Transform references are not set. When references are null, the Transform of the
+  GameObject where the UxrTeleportSpawnCollider is added should be used instead.
+- Fix UxrEditorUtils.ProcessAllProjectComponents() not processing all components
+  correctly.
+- Fix UxrEditorUtils.GetInnermostNon3DModelPrefabRoot() not working on all
+  prefab/instance hierarchies correctly.
+- Fix UxrEditorUtils.GetInnermostNon3DModelPrefabRoot() to handle 3D model prefabs
+  correctly.
+- Fix UxrUnityXRControllerInput when controllers have touchpads.
+- Fix warnings in example scene when loading ShotgunPump01.mp3 and ShotgunPump02.mp3
+- Fix missing EditorGUI.EndProperty() in UxrAxisPropertyDrawer.
+- Move UxrLaserPointerTargetTypes to correct namespace UltimateXR.UI instead of
+  root UltimateXR namespace.
+- Fix UxrGrabPointShapeAxisAngle to compute center of grab correctly using snap point
+  instead of using axis center.
+- Implement missing minAngle and maxAngle functionality in UxrGrabPointShapeAxisAngle.
+- Fix HandPositionAroundPivot manipulation mode drifting when grabbable object is
+  child of another grabbable object.
+- Fix preview grab poses to work on hierarchies with non-uniform scaling.
+- Fix Lock Body Pivot parameter drifting in UxrStandardAvatarController.
+- Fix bug in UI system to detect fingertip presses correctly in a moving canvas.
+- Fix bug in UxrAvatar.LocalAvatar where a disabled avatar can be returned when
+  there are two or more instances of an avatar with Local update mode in the scene.
+- Fix bug in manipulation system where throwing physics-driven objects sometimes
+  has a small lag between the button release and the physics.
+- Improve first-person avatar visibility handling in mirrors and external cameras.
+- Improve wall fade state tracking when the user moves into or through geometry.
+- Improve unique ID diagnostics when serialized references cannot be resolved.
+- Improve controller connection and OpenXR tracking behavior.
+- Improve voice source detection for local and remote participants.
 
 ## [0.9.7] - 2024-01-10
-
+  
 ### Added
 
 - Add support for Meta Quest 3.
@@ -62,6 +259,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   GlobalButtonStateChanged, GlobalInput1DChanged, GlobalInput2DChanged.
 - Fix UxrUnityXRControllerInput components not getting haptic capabilities correctly.
 - Fix warnings in example scene when loading ShotgunPump01.mp3 and ShotgunPump02.mp3
+
+### Removed
+
+- Remove deprecated references to CommonUsages.thumbrest and CommonUsages.thumbTouch
+  in UxrUnityXRControllerInput.cs and use OculusUsages.thumbrest and
+  OculusUsages.thumbTouch instead if available.
 
 ## [0.9.6] - 2023-01-18
 

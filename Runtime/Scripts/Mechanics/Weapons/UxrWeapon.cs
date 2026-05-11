@@ -12,14 +12,18 @@ namespace UltimateXR.Mechanics.Weapons
     ///     Base class for weapons. Weapons are used by <see cref="UxrActor" /> components to inflict damage to other actor
     ///     components.
     /// </summary>
-    public abstract class UxrWeapon : UxrGrabbableObjectComponent<UxrWeapon>
+    public abstract partial class UxrWeapon : UxrGrabbableObjectComponent<UxrWeapon>
     {
         #region Public Types & Data
 
         /// <summary>
         ///     Gets who is in possession of the weapon, to attribute the inflicted damage to.
         /// </summary>
-        public UxrActor Owner { get; protected set; }
+        public UxrActor Owner
+        {
+            get => _owner;
+            protected set => _owner = value;
+        }
 
         #endregion
 
@@ -32,7 +36,34 @@ namespace UltimateXR.Mechanics.Weapons
         {
             base.Awake();
 
+            UxrActor.GlobalUnregistering += UxrActor_GlobalUnregistering;
+
             Owner = GetComponentInParent<UxrActor>();
+        }
+
+        /// <summary>
+        ///     Called when it's going to be destroyed.
+        /// </summary>
+        protected override void OnDestroy()
+        {
+            base.OnDestroy();
+            UxrActor.GlobalUnregistering -= UxrActor_GlobalUnregistering;
+        }
+
+        #endregion
+
+        #region Event Handling Methods
+
+        /// <summary>
+        ///     Called whenever an actor is about to be destroyed.
+        /// </summary>
+        /// <param name="actor"></param>
+        private void UxrActor_GlobalUnregistering(UxrActor actor)
+        {
+            if (Owner == actor)
+            {
+                Owner = null;
+            }
         }
 
         #endregion
@@ -47,7 +78,7 @@ namespace UltimateXR.Mechanics.Weapons
         {
             base.OnObjectGrabbed(e);
 
-            if (e.IsOwnershipChanged && UxrGrabManager.Instance.GetGrabbingHand(e.GrabbableObject, e.GrabPointIndex, out UxrGrabber grabber))
+            if (e.IsGrabbedStateChanged && UxrGrabManager.Instance.GetGrabbingHand(e.GrabbableObject, e.GrabPointIndex, out UxrGrabber grabber))
             {
                 Owner = grabber.Avatar.GetComponentInChildren<UxrActor>();
             }
@@ -59,6 +90,12 @@ namespace UltimateXR.Mechanics.Weapons
 
         /// <inheritdoc />
         protected override bool IsGrabbableObjectRequired => false;
+
+        #endregion
+
+        #region Private Types & Data
+
+        private UxrActor _owner;
 
         #endregion
     }

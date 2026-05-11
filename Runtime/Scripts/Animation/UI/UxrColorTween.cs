@@ -97,7 +97,7 @@ namespace UltimateXR.Animation.UI
         /// </summary>
         /// <param name="graphic">Target graphic</param>
         /// <param name="blinksPerSecond">Number of blinks per second</param>
-        /// <param name="durationSeconds">Total duration of the animation in seconds</param>
+        /// <param name="durationSeconds">Total duration of the animation in seconds. If it is -1, the animation loops infinitely.</param>
         /// <param name="restoreWhenFinished">Whether to restore the original color after the animation finished</param>
         /// <param name="finishedCallback">Optional callback when the animation finished</param>
         /// <param name="delaySeconds"></param>
@@ -105,11 +105,11 @@ namespace UltimateXR.Animation.UI
         ///     Tweening component that will update itself automatically. Can be used to stop the animation prematurely or
         ///     change parameters on the fly.
         /// </returns>
-        public static UxrColorTween AnimateBlinkAlpha(Graphic graphic, float blinksPerSecond, float durationSeconds, float delaySeconds = 0.0f, bool restoreWhenFinished = true, Action<UxrTween> finishedCallback = null)
+        public static UxrColorTween AnimateBlinkAlpha(Graphic graphic, float blinksPerSecond, float durationSeconds, float delaySeconds = 0.0f, float maxAlpha = 1.0f, float minAlpha = 0.0f, bool restoreWhenFinished = true, Action<UxrTween> finishedCallback = null)
         {
             return Animate(graphic,
-                           graphic.color.WithAlpha(1.0f),
-                           graphic.color.WithAlpha(0.0f),
+                           graphic.color.WithAlpha(maxAlpha),
+                           graphic.color.WithAlpha(minAlpha),
                            new UxrInterpolationSettings(1.0f / (blinksPerSecond * 2.0f), delaySeconds, UxrEasing.Linear, UxrLoopMode.PingPong, durationSeconds),
                            t =>
                            {

@@ -12,11 +12,23 @@
         "Wave.Essence.CompositorLayer",
         "Unity.XR.PicoXR",
         "Unity.XR.Oculus",
-        "MagicLeap.SDK"
+        "MagicLeap.SDK",
+        "Unity.Netcode.Components",
+        "Unity.Netcode.Runtime",
+        "Unity.Networking.Transport",
+        "PhotonVoice",
+        "PhotonRealtime",
+        "PhotonVoice.Fusion",
+        "Mirror",
+        "Mirror.Components",
+        "Mirror.Transports",
+        "DissonanceVoip",
+        "FishNet.Runtime",
+        "Unity.XR.Management"
     ],
     "includePlatforms": [],
     "excludePlatforms": [],
-    "allowUnsafeCode": false,
+    "allowUnsafeCode": true,
     "overrideReferences": false,
     "precompiledReferences": [],
     "autoReferenced": true,
@@ -48,6 +60,11 @@
             "define": "ULTIMATEXR_UNITY_TMPRO"
         },
         {
+            "name": "Unity",
+            "expression": "2023.0.0",
+            "define": "ULTIMATEXR_UNITY_TMPRO"
+        },
+        {
             "name": "com.htc.upm.wave.xrsdk",
             "expression": "",
             "define": "ULTIMATEXR_USE_WAVEXR_SDK"
@@ -71,6 +88,21 @@
             "name": "com.magicleap.unitysdk",
             "expression": "",
             "define": "ULTIMATEXR_USE_MAGICLEAP_SDK"
+        },
+        {
+            "name": "com.unity.netcode.gameobjects",
+            "expression": "",
+            "define": "ULTIMATEXR_USE_UNITY_NETCODE"
+        },
+        {
+            "name": "com.unity.xr.management",
+            "expression": "",
+            "define": "ULTIMATEXR_UNITY_XR_MANAGEMENT"
+        },
+        {
+            "name": "com.unity.xr.openxr",
+            "expression": "",
+            "define": "ULTIMATEXR_UNITY_XR_OPENXR"
         }
     ],
     "noEngineReferences": false

@@ -3,6 +3,7 @@
 //   Copyright (c) VRMADA, All rights reserved.
 // </copyright>
 // --------------------------------------------------------------------------------------------------------------------
+using UltimateXR.Core;
 using UnityEngine;
 
 namespace UltimateXR.Extensions.System.Math
@@ -15,17 +16,50 @@ namespace UltimateXR.Extensions.System.Math
         #region Public Methods
 
         /// <summary>
+        ///     Compares two <c>float</c> values for equality with a specified precision threshold.
+        /// </summary>
+        /// <param name="a">The first <c>float</c> to compare</param>
+        /// <param name="b">The second <c>float</c> to compare</param>
+        /// <param name="precisionThreshold">
+        ///     The precision threshold for <c>float</c> comparisons. Defaults to
+        ///     <see cref="UxrConstants.Math.DefaultPrecisionThreshold" />.
+        /// </param>
+        /// <returns>
+        ///     <c>true</c> if the <c>float</c> are equal; otherwise, <c>false</c>.
+        /// </returns>
+        public static bool EqualsUsingPrecision(this float a, float b, float precisionThreshold = UxrConstants.Math.DefaultPrecisionThreshold)
+        {
+            return Mathf.Abs(a - b) <= precisionThreshold;
+        }
+
+        /// <summary>
         ///     Converts a float value representing time in seconds to a formatted string value.
         /// </summary>
         /// <param name="self">Seconds to convert</param>
-        /// <returns>Formatted time hh:mm::ss</returns>
-        public static string SecondsToTimeString(this float self)
+        /// <param name="excludeHoursIfZero">Whether to exclude the hours from the string if they are 0</param>
+        /// <param name="includeHundredthsOfASecond">Whether to include the hundreds of a second in the string</param>
+        /// <returns>
+        ///     Formatted time hh:mm::ss:mmm applying <paramref name="excludeHoursIfZero" /> and
+        ///     <paramref name="includeHundredthsOfASecond" /> constraints.
+        /// </returns>
+        public static string SecondsToTimeString(this float self, bool excludeHoursIfZero = false, bool includeHundredthsOfASecond = false)
         {
-            int hours   = Mathf.FloorToInt(self / 3600.0f);
-            int minutes = Mathf.FloorToInt((self - hours * 3600.0f) / 60.0f);
-            int seconds = Mathf.FloorToInt(self - hours * 3600.0f - minutes * 60.0f);
+            int hours        = Mathf.FloorToInt(self / 3600.0f);
+            int minutes      = Mathf.FloorToInt((self - hours * 3600.0f) / 60.0f);
+            int seconds      = Mathf.FloorToInt(self - hours * 3600.0f - minutes * 60.0f);
+            int milliseconds = (int)(self * 100 % 100);
 
-            return $"{hours:00}:{minutes:00}:{seconds:00}";
+            if (hours >= 1)
+            {
+                return includeHundredthsOfASecond ? $"{hours:D2}:{minutes:D2}:{seconds:D2}:{milliseconds:D2}" : $"{hours:D2}:{minutes:D2}:{seconds:D2}";
+            }
+
+            if (excludeHoursIfZero)
+            {
+                return includeHundredthsOfASecond ? $"{minutes:D2}:{seconds:D2}:{milliseconds:D2}" : $"{minutes:D2}:{seconds:D2}";
+            }
+
+            return includeHundredthsOfASecond ? $"{hours:D2}:{minutes:D2}:{seconds:D2}:{milliseconds:D2}" : $"{hours:D2}:{minutes:D2}:{seconds:D2}";
         }
 
         /// <summary>
@@ -58,6 +92,30 @@ namespace UltimateXR.Extensions.System.Math
             }
 
             return angle;
+        }
+
+        /// <summary>
+        ///     Converts a normalized control value into a sensitivity multiplier using an exponential mapping,
+        ///     so that adjustments feel uniform across the entire range.
+        /// </summary>
+        /// <remarks>
+        ///     Directly using a linear multiplier (e.g., 0.5 = half, 2.0 = double) produces uneven perceived changes,
+        ///     with higher values feeling disproportionately stronger. This method remaps a normalized input so that
+        ///     equal steps result in consistent perceptual changes.
+        ///     
+        ///     The mapping is centered around a neutral point:
+        ///     - For a [0,1] input: 0.5 yields a multiplier of 1.0 (no change)
+        ///     - Values below 0.5 reduce sensitivity while values above 0.5 increase it
+        ///     
+        ///     This approach is commonly used for input sensitivity (mouse, controller) where perceptual linearity
+        ///     is preferred over mathematical linearity.
+        /// </remarks>
+        public static float ToSensitivityMultiplier(this float centeredValue, float maxMultiplier = 4.0f)
+        {
+            centeredValue = Mathf.Clamp(centeredValue, -1.0f, 1.0f);
+            maxMultiplier = Mathf.Max(1.0f, maxMultiplier);
+
+            return Mathf.Pow(maxMultiplier, centeredValue);
         }
 
         /// <summary>
@@ -104,6 +162,28 @@ namespace UltimateXR.Extensions.System.Math
         public static float Clamped(this float self)
         {
             return Mathf.Clamp01(self);
+        }
+
+        /// <summary>
+        ///     Returns the value from the set with the maximum absolute value, but keeping the sign.
+        /// </summary>
+        /// <param name="values">Set of values</param>
+        /// <returns>Value with the maximum absolute value keeping the sign</returns>
+        public static float SignedAbsMax(params float[] values)
+        {
+            float signedAbsoluteMax = 0.0f;
+            bool  initialized       = false;
+
+            foreach (float value in values)
+            {
+                if (!initialized || Mathf.Abs(value) > Mathf.Abs(signedAbsoluteMax))
+                {
+                    initialized       = true;
+                    signedAbsoluteMax = value;
+                }
+            }
+
+            return signedAbsoluteMax;
         }
 
         #endregion

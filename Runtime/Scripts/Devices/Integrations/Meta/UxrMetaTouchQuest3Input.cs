@@ -18,7 +18,7 @@ namespace UltimateXR.Devices.Integrations.Meta
         /// <summary>
         ///     Gets the SDK dependency: Oculus SDK.
         /// </summary>
-        public override string SDKDependency => UxrManager.SdkOculus;
+        public override string SDKDependency => UxrConstants.SdkOculus;
 
         /// <inheritdoc />
         public override UxrControllerSetupType SetupType => UxrControllerSetupType.Dual;
@@ -32,13 +32,13 @@ namespace UltimateXR.Devices.Integrations.Meta
         /// <inheritdoc />
         public override bool HasControllerElements(UxrHandSide handSide, UxrControllerElements controllerElements)
         {
-            uint validElements = (uint)(UxrControllerElements.Joystick |
-                                        UxrControllerElements.Grip |
-                                        UxrControllerElements.Trigger |
+            uint validElements = (uint)(UxrControllerElements.Joystick      |
+                                        UxrControllerElements.Grip          |
+                                        UxrControllerElements.Trigger       |
                                         UxrControllerElements.ThumbCapSense |
-                                        UxrControllerElements.Button1 |
-                                        UxrControllerElements.Button2 |
-                                        UxrControllerElements.Menu |
+                                        UxrControllerElements.Button1       |
+                                        UxrControllerElements.Button2       |
+                                        UxrControllerElements.Menu          |
                                         UxrControllerElements.DPad);
 
             if (handSide == UxrHandSide.Right)
@@ -52,19 +52,14 @@ namespace UltimateXR.Devices.Integrations.Meta
 
         #endregion
 
-        #region Public Overrides UxrUnityXRControllerInput
+        #region Protected Overrides UxrUnityXRControllerInput
 
         /// <inheritdoc />
-        public override IEnumerable<string> ControllerNames
+        protected override IEnumerable<string> ControllerNames
         {
             get
             {
-                if (UxrTrackingDevice.HeadsetDeviceName is "Oculus Quest3" ||
-                    UxrTrackingDevice.HeadsetDeviceName is "Meta Quest 3" ||
-                    UxrTrackingDevice.HeadsetDeviceName is "ventura" ||
-                    UxrTrackingDevice.HeadsetDeviceName is "Meta Quest 3S" ||
-                    UxrTrackingDevice.HeadsetDeviceName is "Quest 3S" ||
-                    UxrTrackingDevice.HeadsetDeviceName is "Quest 3")
+                if (UxrTrackingDevice.HeadsetDeviceName is "Oculus Quest3" or "Oculus Quest3S" or "Meta Quest 3" or "Meta Quest 3S" or "Oculus Headset2")
                 {
                     yield return "Oculus Touch Controller - Left";
                     yield return "Oculus Touch Controller - Right";

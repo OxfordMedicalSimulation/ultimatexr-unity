@@ -47,7 +47,7 @@ namespace UltimateXR.UI.UnityInputModule.Utils
         protected override void OnEnable()
         {
             base.OnEnable();
-            UxrManager.AvatarMoved += UxrManager_AvatarMoved;
+            UxrAvatar.GlobalAvatarMoved += UxrAvatar_GlobalAvatarMoved;
         }
 
         /// <summary>
@@ -56,7 +56,7 @@ namespace UltimateXR.UI.UnityInputModule.Utils
         protected override void OnDisable()
         {
             base.OnDisable();
-            UxrManager.AvatarMoved -= UxrManager_AvatarMoved;
+            UxrAvatar.GlobalAvatarMoved -= UxrAvatar_GlobalAvatarMoved;
         }
 
         #endregion
@@ -68,9 +68,9 @@ namespace UltimateXR.UI.UnityInputModule.Utils
         /// </summary>
         /// <param name="sender">Event sender</param>
         /// <param name="e">Event parameters</param>
-        private void UxrManager_AvatarMoved(object sender, UxrAvatarMoveEventArgs e)
+        private void UxrAvatar_GlobalAvatarMoved(object sender, UxrAvatarMoveEventArgs e)
         {
-            if (Time.time - _timeLastUpdate > _updateSeconds)
+            if (e.Avatar == UxrAvatar.LocalAvatar && Time.time - _timeLastUpdate > _updateSeconds)
             {
                 _timeLastUpdate = Time.time;
                 float distance = Vector3.Distance(e.Avatar.CameraPosition, _canvasScaler.transform.position);

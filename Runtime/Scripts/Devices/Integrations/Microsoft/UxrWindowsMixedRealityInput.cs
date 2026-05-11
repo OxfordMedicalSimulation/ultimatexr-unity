@@ -25,7 +25,7 @@ namespace UltimateXR.Devices.Integrations.Microsoft
         /// <summary>
         ///     Requires WMR SDK using OpenXR.
         /// </summary>
-        public override string SDKDependency => UxrManager.SdkWindowsMixedReality;
+        public override string SDKDependency => UxrConstants.SdkWindowsMixedReality;
 
         /// <inheritdoc />
         public override UxrControllerSetupType SetupType => UxrControllerSetupType.Dual;
@@ -39,11 +39,11 @@ namespace UltimateXR.Devices.Integrations.Microsoft
         /// <inheritdoc />
         public override bool HasControllerElements(UxrHandSide handSide, UxrControllerElements controllerElements)
         {
-            uint validElements = (uint)(UxrControllerElements.Joystick |
+            uint validElements = (uint)(UxrControllerElements.Joystick  |
                                         UxrControllerElements.Joystick2 |
-                                        UxrControllerElements.Grip |
-                                        UxrControllerElements.Trigger |
-                                        UxrControllerElements.Menu |
+                                        UxrControllerElements.Grip      |
+                                        UxrControllerElements.Trigger   |
+                                        UxrControllerElements.Menu      |
                                         UxrControllerElements.DPad);
 
             return (validElements & (uint)controllerElements) == (uint)controllerElements;
@@ -51,15 +51,15 @@ namespace UltimateXR.Devices.Integrations.Microsoft
 
         #endregion
 
-        #region Public Overrides UxrUnityXRControllerInput
+        #region Protected Overrides UxrUnityXRControllerInput
 
         /// <inheritdoc />
-        public override IEnumerable<string> ControllerNames
+        protected override IEnumerable<string> ControllerNames
         {
             get
             {
                 yield return "Windows MR Controller";
-                yield return "Windows MR Controller OpenXR";
+                // Uncomment when providing grip/aim pivots in controller prefabs // yield return "Windows MR Controller OpenXR";
             }
         }
 

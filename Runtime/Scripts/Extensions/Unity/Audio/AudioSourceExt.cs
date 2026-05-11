@@ -43,11 +43,13 @@ namespace UltimateXR.Extensions.Unity.Audio
         ///     Amount of change in pitch due to slowdown/speed up of the Audio Clip. Value 1 is normal playback
         ///     speed.
         /// </param>
+        /// <param name="offsetSeconds">Start offset in seconds</param>
         /// <returns>The just created temporal <see cref="AudioSource" />.</returns>
         public static AudioSource PlayClip(AudioClip clip,
-                                           float     volume = 1.0f,
-                                           float     delay  = 0.0f,
-                                           float     pitch  = 1.0f)
+                                           float     volume        = 1.0f,
+                                           float     delay         = 0.0f,
+                                           float     pitch         = 1.0f,
+                                           float     offsetSeconds = 0.0f)
         {
             if (!Application.isPlaying)
             {
@@ -64,16 +66,24 @@ namespace UltimateXR.Extensions.Unity.Audio
             audioSource.pitch        = pitch;
             audioSource.spatialBlend = SpatialBlendUbiquitous;
 
-            if (delay > 0.0f)
+            if (offsetSeconds - delay >= clip.length)
             {
-                audioSource.PlayDelayed(delay);
+                audioSource.Stop();
+                Object.Destroy(gameObject, 1.0f);
+                return audioSource;
+            }
+
+            if (delay > offsetSeconds)
+            {
+                audioSource.PlayDelayed(delay - offsetSeconds);
             }
             else
             {
                 audioSource.Play();
+                audioSource.time = offsetSeconds - delay;
             }
 
-            float duration = (delay + clip.length) * (Time.timeScale < 0.00999999977648258 ? 0.01f : Time.timeScale);
+            float duration = (delay + clip.length - offsetSeconds) * (Time.timeScale < 0.00999999977648258 ? 0.01f : Time.timeScale);
             Object.Destroy(gameObject, duration);
             return audioSource;
         }
@@ -94,14 +104,16 @@ namespace UltimateXR.Extensions.Unity.Audio
         ///     speed.
         /// </param>
         /// <param name="spatialBlend">Sets how much the 3D engine has an effect on the audio source [0.0, 1.0].</param>
+        /// <param name="offsetSeconds">Start offset in seconds</param>
         /// <returns>The just created temporal <see cref="AudioSource" />.</returns>
         /// <seealso cref="AudioSource.PlayClipAtPoint(AudioClip, Vector3, float)" />
         public static AudioSource PlayClipAtPoint(AudioClip clip,
                                                   Vector3   point,
-                                                  float     volume       = 1.0f,
-                                                  float     delay        = 0.0f,
-                                                  float     pitch        = 1.0f,
-                                                  float     spatialBlend = SpatialBlend3D)
+                                                  float     volume        = 1.0f,
+                                                  float     delay         = 0.0f,
+                                                  float     pitch         = 1.0f,
+                                                  float     spatialBlend  = SpatialBlend3D,
+                                                  float     offsetSeconds = 0.0f)
         {
             if (!Application.isPlaying)
             {
@@ -118,18 +130,28 @@ namespace UltimateXR.Extensions.Unity.Audio
             audioSource.volume       = volume;
             audioSource.pitch        = pitch;
             audioSource.spatialBlend = spatialBlend;
-            audioSource.Play();
 
-            if (delay > 0.0f)
+            if (offsetSeconds - delay >= clip.length)
             {
-                audioSource.PlayDelayed(delay);
+                audioSource.Stop();
+                Object.Destroy(gameObject, 1.0f);
+                return audioSource;
+            }
+
+            audioSource.Play();
+            offsetSeconds = Mathf.Max(offsetSeconds, 0.0f);
+
+            if (delay > offsetSeconds)
+            {
+                audioSource.PlayDelayed(delay - offsetSeconds);
             }
             else
             {
                 audioSource.Play();
+                audioSource.time = offsetSeconds - delay;
             }
 
-            float duration = (delay + clip.length) * (Time.timeScale < 0.00999999977648258 ? 0.01f : Time.timeScale);
+            float duration = (delay + clip.length - offsetSeconds) * (Time.timeScale < 0.00999999977648258 ? 0.01f : Time.timeScale);
             Object.Destroy(gameObject, duration);
             return audioSource;
         }
@@ -149,31 +171,72 @@ namespace UltimateXR.Extensions.Unity.Audio
         ///     Amount of change in pitch due to slowdown/speed up of the Audio Clip. Value 1 is normal playback
         ///     speed.
         /// </param>
+        /// <param name="offsetSeconds">Start offset in seconds</param>
         /// <param name="ct"><see cref="CancellationToken" /> to stop playing.</param>
         /// <returns>An awaitable <see cref="Task" />.</returns>
         public static async Task PlayClipAsync(AudioClip         clip,
-                                               float             volume = 1.0f,
-                                               float             delay  = 0.0f,
-                                               float             pitch  = 1.0f,
-                                               CancellationToken ct     = default)
+                                               float             volume        = 1.0f,
+                                               float             delay         = 0.0f,
+                                               float             pitch         = 1.0f,
+                                               float             offsetSeconds = 0.0f,
+                                               CancellationToken ct            = default)
         {
             if (ct.IsCancellationRequested)
             {
                 return;
             }
+            
             if (!Application.isPlaying)
             {
                 throw new InvalidOperationException("Playback is only allowed while playing.");
             }
-
-            float       duration    = (delay + clip.length) * (Time.timeScale < 0.00999999977648258 ? 0.01f : Time.timeScale);
-            AudioSource audioSource = PlayClip(clip, volume, delay, pitch);
-            await TaskExt.Delay(duration, ct);
-
-            if (ct.IsCancellationRequested && audioSource != null)
+            
+            if (offsetSeconds >= clip.length)
             {
-                audioSource.Stop();
-                Object.Destroy(audioSource.gameObject);
+                return;
+            }
+
+            offsetSeconds = Mathf.Max(offsetSeconds, 0.0f);
+
+            AudioSource audioSource = PlayClipInternal(clip, volume, delay, pitch, offsetSeconds, SpatialBlendUbiquitous, Vector3.zero, false);
+            float       duration    = delay + clip.length - offsetSeconds;
+
+            try
+            {
+                // Poll AudioSource state instead of using a fixed delay so that the wait
+                // is aware of AudioListener.pause (which pauses all audio globally).
+                // While paused, isPlaying returns false but the source still exists and
+                // will resume when unpaused, so we keep waiting.
+                // Also track elapsed unpaused time to handle looped clips, which would
+                // never set isPlaying to false on their own.
+                float elapsed = 0.0f;
+
+                while (!ct.IsCancellationRequested && audioSource != null && audioSource.gameObject != null)
+                {
+                    if (!AudioListener.pause)
+                    {
+                        elapsed += Time.unscaledDeltaTime;
+
+                        if (!audioSource.isPlaying || elapsed >= duration)
+                        {
+                            break;
+                        }
+                    }
+
+                    await Task.Yield();
+                }
+            }
+            finally
+            {
+                if (ct.IsCancellationRequested && audioSource != null)
+                {
+                    audioSource.Stop();
+                }
+
+                if (audioSource != null && audioSource.gameObject != null)
+                {
+                    Object.Destroy(audioSource.gameObject);
+                }
             }
         }
 
@@ -193,34 +256,131 @@ namespace UltimateXR.Extensions.Unity.Audio
         ///     speed.
         /// </param>
         /// <param name="spatialBlend">Sets how much the 3D engine has an effect on the audio source [0.0, 1.0].</param>
+        /// <param name="offsetSeconds">Start offset in seconds</param>
         /// <param name="ct"><see cref="CancellationToken" /> to stop playing.</param>
         /// <returns>An awaitable <see cref="Task" />.</returns>
         public static async Task PlayClipAtPointAsync(AudioClip         clip,
                                                       Vector3           point,
-                                                      float             volume       = 1.0f,
-                                                      float             delay        = 0.0f,
-                                                      float             pitch        = 1.0f,
-                                                      float             spatialBlend = SpatialBlend3D,
-                                                      CancellationToken ct           = default)
+                                                      float             volume        = 1.0f,
+                                                      float             delay         = 0.0f,
+                                                      float             pitch         = 1.0f,
+                                                      float             spatialBlend  = SpatialBlend3D,
+                                                      float             offsetSeconds = 0.0f,
+                                                      CancellationToken ct            = default)
         {
             if (ct.IsCancellationRequested)
             {
                 return;
             }
+            
             if (!Application.isPlaying)
             {
                 throw new InvalidOperationException("Playback is only allowed while playing.");
             }
 
-            float       duration    = (delay + clip.length) * (Time.timeScale < 0.00999999977648258 ? 0.01f : Time.timeScale);
-            AudioSource audioSource = PlayClipAtPoint(clip, point, volume, delay, pitch, spatialBlend);
-            await TaskExt.Delay(duration, ct);
+            if (offsetSeconds >= clip.length)
+            {
+                return;
+            }
 
-            if (ct.IsCancellationRequested && audioSource != null)
+            offsetSeconds = Mathf.Max(offsetSeconds, 0.0f);
+
+            AudioSource audioSource = PlayClipInternal(clip, volume, delay, pitch, offsetSeconds, spatialBlend, point, true);
+            float       duration    = delay + clip.length - offsetSeconds;
+
+            try
+            {
+                // Poll AudioSource state instead of using a fixed delay so that the wait
+                // is aware of AudioListener.pause (which pauses all audio globally).
+                // While paused, isPlaying returns false but the source still exists and
+                // will resume when unpaused, so we keep waiting.
+                // Also track elapsed unpaused time to handle looped clips, which would
+                // never set isPlaying to false on their own.
+                float elapsed = 0.0f;
+
+                while (!ct.IsCancellationRequested && audioSource != null && audioSource.gameObject != null)
+                {
+                    if (!AudioListener.pause)
+                    {
+                        elapsed += Time.unscaledDeltaTime;
+
+                        if (!audioSource.isPlaying || elapsed >= duration)
+                        {
+                            break;
+                        }
+                    }
+
+                    await Task.Yield();
+                }
+            }
+            finally
+            {
+                if (ct.IsCancellationRequested && audioSource != null)
+                {
+                    audioSource.Stop();
+                }
+
+                if (audioSource != null && audioSource.gameObject != null)
+                {
+                    Object.Destroy(audioSource.gameObject);
+                }
+            }
+        }
+
+        #endregion
+
+        #region Private Methods
+
+        /// <summary>
+        ///     Internal helper that creates an <see cref="AudioSource" />, configures it, and starts playback
+        ///     without scheduling <see cref="Object.Destroy" />. This allows async callers to manage the
+        ///     AudioSource lifetime themselves, avoiding premature destruction when <see cref="Time.timeScale" />
+        ///     changes (e.g., during replay pause/resume).
+        /// </summary>
+        private static AudioSource PlayClipInternal(AudioClip clip,
+                                                    float     volume,
+                                                    float     delay,
+                                                    float     pitch,
+                                                    float     offsetSeconds,
+                                                    float     spatialBlend,
+                                                    Vector3   position,
+                                                    bool      positionAudio)
+        {
+            clip.ThrowIfNull(nameof(clip));
+            volume = Mathf.Clamp01(volume);
+            pitch  = Mathf.Clamp01(pitch);
+
+            string label      = positionAudio ? nameof(PlayClipAtPoint) : nameof(PlayClip);
+            var    gameObject = new GameObject($"{nameof(AudioSourceExt)}_{label}_{clip.name}");
+
+            if (positionAudio)
+            {
+                gameObject.transform.position = position;
+            }
+
+            var audioSource = gameObject.AddComponent<AudioSource>();
+            audioSource.clip         = clip;
+            audioSource.volume       = volume;
+            audioSource.pitch        = pitch;
+            audioSource.spatialBlend = positionAudio ? Mathf.Clamp01(spatialBlend) : SpatialBlendUbiquitous;
+
+            if (offsetSeconds - delay >= clip.length)
             {
                 audioSource.Stop();
-                Object.Destroy(audioSource.gameObject);
+                return audioSource;
             }
+
+            if (delay > offsetSeconds)
+            {
+                audioSource.PlayDelayed(delay - offsetSeconds);
+            }
+            else
+            {
+                audioSource.Play();
+                audioSource.time = offsetSeconds - delay;
+            }
+
+            return audioSource;
         }
 
         #endregion

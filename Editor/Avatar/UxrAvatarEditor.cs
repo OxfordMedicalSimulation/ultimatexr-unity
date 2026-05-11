@@ -9,6 +9,8 @@ using UltimateXR.Animation.IK;
 using UltimateXR.Avatar;
 using UltimateXR.Avatar.Controllers;
 using UltimateXR.Avatar.Rig;
+using UltimateXR.CameraUtils;
+using UltimateXR.Core;
 using UltimateXR.Devices;
 using UltimateXR.Editor.Animation.IK;
 using UltimateXR.Editor.Avatar.Controllers;
@@ -16,6 +18,7 @@ using UltimateXR.Editor.Manipulation.HandPoses;
 using UltimateXR.Extensions.System.Collections;
 using UltimateXR.Extensions.Unity;
 using UltimateXR.Manipulation.HandPoses;
+using UltimateXR.Networking;
 using UnityEditor;
 using UnityEditor.Experimental.SceneManagement;
 using UnityEditor.SceneManagement;
@@ -46,22 +49,24 @@ namespace UltimateXR.Editor.Avatar
         /// </summary>
         private void OnEnable()
         {
-            _propertyPrefabGuid             = serializedObject.FindProperty(PropertyPrefabGuid);
-            _propertyParentPrefab           = serializedObject.FindProperty(PropertyParentPrefab);
-            _propertyAvatarMode             = serializedObject.FindProperty("_avatarMode");
-            _propertyRenderMode             = serializedObject.FindProperty("_renderMode");
-            _propertyShowControllerHands    = serializedObject.FindProperty("_showControllerHands");
-            _propertyAvatarRenderers        = serializedObject.FindProperty("_avatarRenderers");
-            _propertyRigType                = serializedObject.FindProperty("_rigType");
-            _propertyRigExpandedInitialized = serializedObject.FindProperty("_rigExpandedInitialized");
-            _propertyRigFoldout             = serializedObject.FindProperty("_rigFoldout");
-            _propertyRig                    = serializedObject.FindProperty("_rig");
-            _propertyHandPosesFoldout       = serializedObject.FindProperty("_handPosesFoldout");
-            _propertyHandPoses              = serializedObject.FindProperty(PropertyHandPoses);
+            _propertyPrefabGuid                   = serializedObject.FindProperty(PropertyPrefabGuid);
+            _propertyParentPrefab                 = serializedObject.FindProperty(PropertyParentPrefab);
+            _propertyAvatarMode                   = serializedObject.FindProperty("_avatarMode");
+            _propertyRenderMode                   = serializedObject.FindProperty("_renderMode");
+            _propertyShowControllerHands          = serializedObject.FindProperty("_showControllerHands");
+            _propertyAvatarRenderers              = serializedObject.FindProperty("_avatarRenderers");
+            _propertyPartialAvatarHiddenRenderers = serializedObject.FindProperty("_partialAvatarHiddenRenderers");
+            _propertyFirstPersonHiddenRenderers   = serializedObject.FindProperty("_firstPersonHiddenRenderers");
+            _propertyRigType                      = serializedObject.FindProperty("_rigType");
+            _propertyRigExpandedInitialized       = serializedObject.FindProperty("_rigExpandedInitialized");
+            _propertyRigFoldout                   = serializedObject.FindProperty("_rigFoldout");
+            _propertyRig                          = serializedObject.FindProperty("_rig");
+            _propertyHandPosesFoldout             = serializedObject.FindProperty("_handPosesFoldout");
+            _propertyHandPoses                    = serializedObject.FindProperty(PropertyHandPoses);
 
             // Expand rig when created, only once.
 
-            if (_propertyRigExpandedInitialized.boolValue == false)
+            if (!_propertyRigExpandedInitialized.boolValue)
             {
                 _propertyRigExpandedInitialized.boolValue = true;
                 _propertyRig.isExpanded                   = true;
@@ -84,17 +89,19 @@ namespace UltimateXR.Editor.Avatar
                 return;
             }
 
-            GameObject prefab       = null;
-            GameObject parentPrefab = null;
+            GameObject prefab                = null;
+            GameObject parentPrefab          = null;
+            bool       isPrefabStageSelected = false;
 
-            if (avatar.gameObject.IsPrefab())
+            if (avatar.gameObject.IsPrefabRoot())
             {
                 PrefabStage prefabStage = PrefabStageUtility.GetCurrentPrefabStage();
 
                 if (prefabStage != null && prefabStage.prefabContentsRoot == avatar.gameObject)
                 {
-                    // Open in prefab window
-                    prefab = AssetDatabase.LoadAssetAtPath<GameObject>(prefabStage.assetPath);
+                    // Get prefab from prefab window which is open
+                    prefab                = AssetDatabase.LoadAssetAtPath<GameObject>(prefabStage.assetPath);
+                    isPrefabStageSelected = true;
                 }
                 else
                 {
@@ -103,28 +110,28 @@ namespace UltimateXR.Editor.Avatar
             }
             else
             {
-                UxrEditorUtils.GetPrefab(avatar.gameObject, out prefab);
-                
+                UxrEditorUtils.GetInParentPrefab(avatar.gameObject, out prefab);
+
                 PrefabStage prefabStage = PrefabStageUtility.GetCurrentPrefabStage();
 
                 if (prefabStage == null || prefabStage.prefabContentsRoot != avatar.gameObject)
                 {
-                    // Not open in prefab window.
+                    // It's not open in prefab window.
                     // Fix for avatar prefabs nested in another higher-level prefab
                     while (prefab != null && prefab.gameObject.transform.parent != null)
                     {
-                        UxrEditorUtils.GetPrefab(prefab.gameObject, out prefab);
+                        UxrEditorUtils.GetInParentPrefab(prefab.gameObject, out prefab);
                     }
                 }
             }
 
             if (prefab != null)
             {
-                UxrEditorUtils.GetPrefab(prefab.gameObject, out parentPrefab);
+                UxrEditorUtils.GetInParentPrefab(prefab.gameObject, out parentPrefab);
             }
 
-            UxrAvatar avatarPrefab       = prefab != null ? prefab.GetComponent<UxrAvatar>() : null;
-            string    avatarPrefabGuid   = prefab != null ? AssetDatabase.GUIDFromAssetPath(AssetDatabase.GetAssetPath(prefab)).ToString() : null;
+            UxrAvatar avatarPrefab       = prefab       != null ? prefab.GetComponent<UxrAvatar>() : null;
+            string    avatarPrefabGuid   = prefab       != null ? AssetDatabase.GUIDFromAssetPath(AssetDatabase.GetAssetPath(prefab)).ToString() : null;
             UxrAvatar avatarParentPrefab = parentPrefab != null ? parentPrefab.GetComponent<UxrAvatar>() : null;
 
             if (!Application.isPlaying)
@@ -152,7 +159,7 @@ namespace UltimateXR.Editor.Avatar
                 }
 
                 // Force instances getting parent prefab from their source prefab
-                if (prefab != null && avatar.gameObject != prefab && propertyParentPrefab != null)
+                if (prefab != null && avatar.gameObject != prefab && propertyParentPrefab != null && _propertyParentPrefab.prefabOverride && !isPrefabStageSelected)
                 {
                     _propertyParentPrefab.prefabOverride = false;
                 }
@@ -192,7 +199,7 @@ namespace UltimateXR.Editor.Avatar
 
                     if (avatarPrefab != null && avatarParentPrefab != null)
                     {
-                        IEnumerable<UxrHandPoseAsset> netHandPoses = avatarPrefab.GetHandPoses().Where(handPose => avatarParentPrefab.GetHandPoses().All(handPose2 => handPose != handPose2));
+                        List<UxrHandPoseAsset> netHandPoses = avatarPrefab.GetHandPoses().Where(handPose => avatarParentPrefab.GetHandPoses().All(handPose2 => handPose != handPose2)).ToList();
 
                         if (netHandPoses.Count() != propertyHandPoses.arraySize)
                         {
@@ -204,7 +211,7 @@ namespace UltimateXR.Editor.Avatar
                 }
             }
 
-            if (!avatar.gameObject.IsPrefab())
+            if (!avatar.gameObject.IsPrefabRoot())
             {
                 // Assistant
 
@@ -221,7 +228,7 @@ namespace UltimateXR.Editor.Avatar
                         {
                             if (newInstance == null)
                             {
-                                EditorUtility.DisplayDialog("Error", "The prefab variant was created but it could not be instantiated in the scene. Try doing it manually.", "OK");
+                                EditorUtility.DisplayDialog(UxrConstants.Editor.Error, "The prefab variant was created but it could not be instantiated in the scene. Try doing it manually.", UxrConstants.Editor.Ok);
                             }
                             else
                             {
@@ -238,14 +245,14 @@ namespace UltimateXR.Editor.Avatar
                                 // @TODO: Should save in innermost parent prefab, but currently the only way I found to force a save is using MarkSceneDirty
                                 EditorSceneManager.MarkSceneDirty(prefabStage.scene);
                             }
-                            
+
                             return;
                         }
                     }
                 }
                 else if (camera == null)
                 {
-                    camera = FindObjectOfType<Camera>();
+                    camera = FindAnyObjectByType<Camera>();
 
                     if (camera == null || camera.SafeGetComponentInParent<UxrAvatar>() != null)
                     {
@@ -255,19 +262,21 @@ namespace UltimateXR.Editor.Avatar
                         {
                             GameObject cameraController = new GameObject("Camera Controller");
                             cameraController.transform.SetPositionAndRotation(avatar.transform.position, avatar.transform.rotation);
-                            cameraController.transform.parent   = avatar.transform;
+                            cameraController.transform.parent = avatar.transform;
                             cameraController.transform.SetAsFirstSibling();
                             Undo.RegisterCreatedObjectUndo(cameraController, "Create Camera Controller");
 
                             GameObject cameraObject = new GameObject("Camera");
                             cameraObject.transform.SetPositionAndRotation(cameraController.transform.position, cameraController.transform.rotation);
-                            cameraObject.transform.parent   = cameraController.transform;
-                            cameraObject.tag                = "MainCamera";
+                            cameraObject.transform.parent = cameraController.transform;
+                            cameraObject.tag              = "MainCamera";
                             Undo.RegisterCreatedObjectUndo(cameraObject, "Create Camera");
 
                             Camera newCamera = cameraObject.AddComponent<Camera>();
                             newCamera.nearClipPlane = 0.01f;
                             cameraObject.AddComponent<AudioListener>();
+                            UxrFirstPersonCamera firstPersonCamera = cameraObject.AddComponent<UxrFirstPersonCamera>();
+                            firstPersonCamera.Avatar = avatar;
                         }
                     }
                     else
@@ -280,7 +289,7 @@ namespace UltimateXR.Editor.Avatar
                             {
                                 GameObject cameraController = new GameObject("Camera Controller");
                                 cameraController.transform.SetPositionAndRotation(avatar.transform.position, avatar.transform.rotation);
-                                cameraController.transform.parent   = avatar.transform;
+                                cameraController.transform.parent = avatar.transform;
                                 cameraController.transform.SetAsFirstSibling();
                                 Undo.RegisterCreatedObjectUndo(cameraController, "Create Camera Controller");
 
@@ -334,18 +343,18 @@ namespace UltimateXR.Editor.Avatar
                             if (GUILayout.Button(ContentFix, GUILayout.Width(FixButtonWidth)))
                             {
                                 avatar.TryToInferMissingRigElements();
-                                
+
                                 if (avatar.AvatarRig.HasAnyUpperBodyIKReference())
                                 {
                                     // Make avatar full-body if it has any upper body reference
                                     _propertyRigType.enumValueIndex = (int)UxrAvatarRigType.HalfOrFullBody;
                                 }
-                                
+
                                 RefreshRigSerializedProperty(avatar);
 
                                 if (!avatar.AvatarRig.HasFullHandData())
                                 {
-                                    EditorUtility.DisplayDialog("Missing data", "Could not try to figure out all hand and finger bone references. Try setting them up manually under the Avatar rig section.", "OK");
+                                    EditorUtility.DisplayDialog("Missing data", "Could not try to figure out all hand and finger bone references. Try setting them up manually under the Avatar rig section.", UxrConstants.Editor.Ok);
                                 }
                             }
                         }
@@ -393,6 +402,10 @@ namespace UltimateXR.Editor.Avatar
 
                                 EditorGUILayout.EndHorizontal();
                             }
+                            else if (avatar.GetComponent<IUxrNetworkAvatar>() != null)
+                            {
+                                EditorGUILayout.HelpBox(IsMultiplayerPrefab, MessageType.Warning);
+                            }
                             else
                             {
                                 EditorGUILayout.HelpBox("Avatar is ready to rock!", MessageType.Info);
@@ -423,9 +436,11 @@ namespace UltimateXR.Editor.Avatar
 
             if (_foldoutRendering)
             {
-                _propertyRenderMode.intValue = EditorGUILayout.MaskField(ContentRenderMode, _propertyRenderMode.intValue, UxrEditorUtils.GetAvatarRenderModeNames().SplitCamelCase().ToArray());
-                EditorGUILayout.PropertyField(_propertyShowControllerHands, ContentShowControllerHands);
-                EditorGUILayout.PropertyField(_propertyAvatarRenderers,     ContentAvatarRenderers, true);
+                EditorGUILayout.PropertyField(_propertyRenderMode,                   ContentRenderMode);
+                EditorGUILayout.PropertyField(_propertyShowControllerHands,          ContentShowControllerHands);
+                EditorGUILayout.PropertyField(_propertyAvatarRenderers,              ContentAvatarRenderers,              true);
+                EditorGUILayout.PropertyField(_propertyPartialAvatarHiddenRenderers, ContentPartialAvatarHiddenRenderers, true);
+                EditorGUILayout.PropertyField(_propertyFirstPersonHiddenRenderers,   ContentFirstPersonHiddenRenderers,   true);
             }
 
             // Rig
@@ -474,7 +489,7 @@ namespace UltimateXR.Editor.Avatar
                     {
                         if (!avatar.SetupRigElementsFromAnimator())
                         {
-                            EditorUtility.DisplayDialog("Animator data is missing", "Could not find any Animator component with humanoid data. Please use a model with a humanoid avatar to use autofill.", "OK");
+                            EditorUtility.DisplayDialog("Animator data is missing", "Could not find any Animator component with humanoid data. Please use a model with a humanoid avatar to use autofill.", UxrConstants.Editor.Ok);
                         }
                         else
                         {
@@ -528,7 +543,7 @@ namespace UltimateXR.Editor.Avatar
                 {
                     foreach (UxrAvatar avatarChainPrefab in avatar.GetPrefabChain())
                     {
-                        IEnumerable<UxrHandPoseAsset> handPoses = avatarChainPrefab.GetHandPoses();
+                        List<UxrHandPoseAsset> handPoses = avatarChainPrefab.GetHandPoses().ToList();
 
                         if (handPoses.Any())
                         {
@@ -563,7 +578,7 @@ namespace UltimateXR.Editor.Avatar
                                     Selection.activeObject = AssetDatabase.LoadAssetAtPath<UxrHandPoseAsset>(AssetDatabase.GetAssetPath(pose));
                                 }
 
-                                if (!avatar.gameObject.IsPrefab())
+                                if (!avatar.IsInPrefab())
                                 {
                                     if (!avatar.IsHandPoseOverriden(pose) && GUILayout.Button(ContentOpenPose))
                                     {
@@ -581,7 +596,7 @@ namespace UltimateXR.Editor.Avatar
                     // EditorGUILayout.PropertyField(serializedObject.FindProperty("_handPoses"));
                 }
 
-                if (!string.IsNullOrEmpty(avatar.PrefabGuid) && !avatar.gameObject.IsPrefab() && !UxrHandPoseEditorWindow.IsVisible && UxrEditorUtils.CenteredButton(ContentOpenHandPoseEditor, -1))
+                if (!string.IsNullOrEmpty(avatar.PrefabGuid) && !avatar.IsInPrefab() && !UxrHandPoseEditorWindow.IsVisible && UxrEditorUtils.CenteredButton(ContentOpenHandPoseEditor, -1))
                 {
                     UxrHandPoseEditorWindow.Open(avatar);
                 }
@@ -595,7 +610,7 @@ namespace UltimateXR.Editor.Avatar
                 {
                     if (newInstance == null)
                     {
-                        EditorUtility.DisplayDialog("Error", "The prefab was created but it could not be instantiated in the scene. Try doing it manually.", "OK");
+                        EditorUtility.DisplayDialog(UxrConstants.Editor.Error, "The prefab was created but it could not be instantiated in the scene. Try doing it manually.", UxrConstants.Editor.Ok);
                     }
                     else
                     {
@@ -619,7 +634,7 @@ namespace UltimateXR.Editor.Avatar
 
             /*
             // Draw finger tips and finger print positions
-            
+
             Color handlesColor = Handles.color;
             Handles.matrix = Matrix4x4.identity;
 
@@ -740,14 +755,14 @@ namespace UltimateXR.Editor.Avatar
             serializedObject.FindProperty("_rig._rightLeg._lowerLeg").objectReferenceValue = avatar.AvatarRig.RightLeg.LowerLeg;
             serializedObject.FindProperty("_rig._rightLeg._foot").objectReferenceValue     = avatar.AvatarRig.RightLeg.Foot;
             serializedObject.FindProperty("_rig._rightLeg._toes").objectReferenceValue     = avatar.AvatarRig.RightLeg.Toes;
-            
+
             // Clear torsion nodes if they exist
-            
+
             if (avatar.AvatarRig.LeftArm.Forearm == null && avatar.AvatarRig.RightArm.Forearm == null)
             {
                 avatar.GetComponentsInChildren<UxrWristTorsionIKSolver>().ForEach(Undo.DestroyObjectImmediate);
             }
-            
+
             // Update standard avatar controller info
 
             UxrAvatarController avatarController = avatar.GetComponent<UxrAvatarController>();
@@ -758,7 +773,7 @@ namespace UltimateXR.Editor.Avatar
                 SerializedProperty propIKSettings             = serializedAvatarController.FindProperty(UxrStandardAvatarControllerEditor.PropBodyIKSettings);
 
                 serializedAvatarController.Update();
-                
+
                 // Try to set eye base height and forward offset
 
                 if (avatar.AvatarRig.Head.LeftEye && avatar.AvatarRig.Head.RightEye)
@@ -767,19 +782,19 @@ namespace UltimateXR.Editor.Avatar
                     Vector3 eyeRight = avatar.transform.InverseTransformPoint(avatar.AvatarRig.Head.RightEye.position);
 
                     propIKSettings.FindPropertyRelative(UxrIKBodySettingsDrawer.PropertyEyesBaseHeight).floatValue    = (avatar.AvatarRig.Head.LeftEye.position.y + avatar.AvatarRig.Head.RightEye.position.y) * 0.5f - avatar.transform.position.y;
-                    propIKSettings.FindPropertyRelative(UxrIKBodySettingsDrawer.PropertyEyesForwardOffset).floatValue = (eyeLeft.z + eyeRight.z) * 0.5f + 0.02f;
+                    propIKSettings.FindPropertyRelative(UxrIKBodySettingsDrawer.PropertyEyesForwardOffset).floatValue = (eyeLeft.z                                + eyeRight.z)                                * 0.5f + 0.02f;
                 }
                 else if (avatar.AvatarRig.Head.Head != null)
                 {
-                    propIKSettings.FindPropertyRelative(UxrIKBodySettingsDrawer.PropertyEyesBaseHeight).floatValue    = (avatar.AvatarRig.Head.Head.position.y - avatar.transform.position.y) + 0.1f;
+                    propIKSettings.FindPropertyRelative(UxrIKBodySettingsDrawer.PropertyEyesBaseHeight).floatValue    = avatar.AvatarRig.Head.Head.position.y - avatar.transform.position.y + 0.1f;
                     propIKSettings.FindPropertyRelative(UxrIKBodySettingsDrawer.PropertyEyesForwardOffset).floatValue = 0.15f;
                 }
-                
+
                 // If a neck wasn't found, try to set neck base height and forward setting using the head node 
 
                 if (avatar.AvatarRig.Head.Neck == null && avatar.AvatarRig.Head.Head != null)
                 {
-                    propIKSettings.FindPropertyRelative(UxrIKBodySettingsDrawer.PropertyNeckBaseHeight).floatValue    = (avatar.AvatarRig.Head.Head.position.y - avatar.transform.position.y) - 0.1f;
+                    propIKSettings.FindPropertyRelative(UxrIKBodySettingsDrawer.PropertyNeckBaseHeight).floatValue    = avatar.AvatarRig.Head.Head.position.y - avatar.transform.position.y - 0.1f;
                     propIKSettings.FindPropertyRelative(UxrIKBodySettingsDrawer.PropertyNeckForwardOffset).floatValue = 0.0f;
                 }
 
@@ -791,28 +806,30 @@ namespace UltimateXR.Editor.Avatar
 
         #region Private Types & Data
 
-        private GUIContent ContentFix                   { get; } = new GUIContent("Fix",                      "Fixes the issue above automatically");
-        private GUIContent ContentBigHandsIntegration   { get; } = new GUIContent("Use Big hands",            "Adds the BigHandsIntegration prefab to the avatar, which includes functionality to use tracking/input devices and also interact with the environment using manipulation, locomotion etc.");
-        private GUIContent ContentSmallHandsIntegration { get; } = new GUIContent("Use Small hands",          "Adds the SmallHandsIntegration prefab to the avatar, which includes functionality to use tracking/input devices and also interact with the environment using manipulation, locomotion etc.");
-        private GUIContent ContentCreatePrefab          { get; } = new GUIContent("Create Prefab",            "Creates a prefab for this avatar");
-        private GUIContent ContentAutoFillFromAnimator  { get; } = new GUIContent("Autofill from Animator",   "");
-        private GUIContent ContentTryToFillGuessing     { get; } = new GUIContent("Try to fill",              "");
-        private GUIContent ContentClearRig              { get; } = new GUIContent("Clear",                    "");
-        private GUIContent ContentSelectPrefab          { get; } = new GUIContent("Select prefab",            "");
-        private GUIContent ContentSelectPoseAsset       { get; } = new GUIContent("Select",                   "");
-        private GUIContent ContentOpenPose              { get; } = new GUIContent("Open",                     "");
-        private GUIContent ContentOpenHandPoseEditor    { get; } = new GUIContent("Open Hand Pose Editor...", "");
-        private GUIContent ContentHead                  { get; } = new GUIContent("Head (optional)",          "");
-        private GUIContent ContentLeftHand              { get; } = new GUIContent("Left Hand",                "");
-        private GUIContent ContentRightHand             { get; } = new GUIContent("Right Hand",               "");
-        private GUIContent ContentPrefab                { get; } = new GUIContent("Prefab",                   "");
-        private GUIContent ContentParentPrefab          { get; } = new GUIContent("Parent Prefab",            "");
-        private GUIContent ContentAvatarMode            { get; } = new GUIContent("Avatar Mode",              "Local Avatars are updated automatically using the headset and controllers, while UpdateExternally avatars are not updated and act as puppets that should be updated manually. They are useful in multiplayer applications for the remote avatars.");
-        private GUIContent ContentRenderMode            { get; } = new GUIContent("Render Mode",              "Controls the way the avatar will be rendered. Avatar mode is the default but for tutorials, menus and other cases rendering the controllers may be more convenient");
-        private GUIContent ContentShowControllerHands   { get; } = new GUIContent("Show Controller Hands",    "If the render mode is set to render the controllers, will the hands that come with them also be rendered? Set it to false to render the controllers only. Set it to true if you want some fancy hands with IK on top of them");
-        private GUIContent ContentAvatarRenderers       { get; } = new GUIContent("Avatar Renderers",         "The list of renderers that make up the avatar when rendered in-game. This is used to switch between rendering the avatar or the controllers or both");
-        private GUIContent ContentRigType               { get; } = new GUIContent("Rig Type",                 "");
-        private GUIContent ContentRig                   { get; } = new GUIContent("Rig",                      "");
+        private GUIContent ContentFix                          { get; } = new GUIContent("Fix",                             "Fixes the issue above automatically");
+        private GUIContent ContentBigHandsIntegration          { get; } = new GUIContent("Use Big hands",                   "Adds the BigHandsIntegration prefab to the avatar, which includes functionality to use tracking/input devices and also interact with the environment using manipulation, locomotion etc.");
+        private GUIContent ContentSmallHandsIntegration        { get; } = new GUIContent("Use Small hands",                 "Adds the SmallHandsIntegration prefab to the avatar, which includes functionality to use tracking/input devices and also interact with the environment using manipulation, locomotion etc.");
+        private GUIContent ContentCreatePrefab                 { get; } = new GUIContent("Create Prefab",                   "Creates a prefab for this avatar");
+        private GUIContent ContentAutoFillFromAnimator         { get; } = new GUIContent("Autofill from Animator",          "");
+        private GUIContent ContentTryToFillGuessing            { get; } = new GUIContent("Try to fill",                     "");
+        private GUIContent ContentClearRig                     { get; } = new GUIContent("Clear",                           "");
+        private GUIContent ContentSelectPrefab                 { get; } = new GUIContent("Select prefab",                   "");
+        private GUIContent ContentSelectPoseAsset              { get; } = new GUIContent("Select",                          "");
+        private GUIContent ContentOpenPose                     { get; } = new GUIContent("Open",                            "");
+        private GUIContent ContentOpenHandPoseEditor           { get; } = new GUIContent("Open Hand Pose Editor...",        "");
+        private GUIContent ContentHead                         { get; } = new GUIContent("Head (optional)",                 "");
+        private GUIContent ContentLeftHand                     { get; } = new GUIContent("Left Hand",                       "");
+        private GUIContent ContentRightHand                    { get; } = new GUIContent("Right Hand",                      "");
+        private GUIContent ContentPrefab                       { get; } = new GUIContent("Prefab",                          "");
+        private GUIContent ContentParentPrefab                 { get; } = new GUIContent("Parent Prefab",                   "");
+        private GUIContent ContentAvatarMode                   { get; } = new GUIContent("Avatar Mode",                     "Local Avatars are updated automatically using the headset and controllers, while UpdateExternally avatars are not updated and act as puppets that should be updated manually. They are useful in multiplayer applications for the remote avatars.");
+        private GUIContent ContentRenderMode                   { get; } = new GUIContent("Render Mode",                     "Determines which visual elements are rendered: controllers, avatar, both, or a partial avatar where selected renderers are hidden to prevent overlap with controllers.");
+        private GUIContent ContentShowControllerHands          { get; } = new GUIContent("Show Controller Hands",           "If the render mode is set to render the controllers, will the hands that come with them also be rendered? Set it to false to render the controllers only. Set it to true if you want some fancy hands with IK on top of them");
+        private GUIContent ContentAvatarRenderers              { get; } = new GUIContent("Avatar Renderers",                "The list of renderers that make up the avatar when rendered in-game. This is used to switch between rendering the avatar or the controllers or both");
+        private GUIContent ContentPartialAvatarHiddenRenderers { get; } = new GUIContent("Partial Avatar Hidden Renderers", "Renderers from the avatar that are hidden when using \"Controllers and Partial Avatar\" mode, preventing clipping with the controllers. Typically hands and arms are used here.");
+        private GUIContent ContentFirstPersonHiddenRenderers   { get; } = new GUIContent("First Person Hidden Renderers",   "Renderers to hide for first-person cameras (with UxrFirstPersonCamera) to prevent clipping (e.g., head, glasses). Still visible in any other cameras.");
+        private GUIContent ContentRigType                      { get; } = new GUIContent("Rig Type",                        "");
+        private GUIContent ContentRig                          { get; } = new GUIContent("Rig",                             "");
 
         private const int    ButtonWidth               = 140;
         private const int    FixButtonWidth            = 120;
@@ -823,6 +840,7 @@ namespace UltimateXR.Editor.Avatar
         private const string NeedsAvatarControllerHelp = "The avatar needs an UxrAvatarController component that will take care of updating all its components. You can add an UxrStandardAvatarController component or provide your own for advanced custom avatar handling.";
         private const string NeedsFingerSetup          = "The avatar rig has no hand or finger bone references assigned yet. They are required to use hand poses and set up hand integrations.";
         private const string NeedsIntegrationHelp      = "The avatar has no support for tracking/input devices yet. You can use one of the below integrations to leverage this work for you. The hand size will only determine the type of hands that will be shown when the input controllers are visualized instead of the avatar hands.";
+        private const string IsMultiplayerPrefab       = "This avatar is a prefab intended for multiplayer. Multiplayer prefabs are spawned at runtime, either by the user or with the help of UxrNetworkManager, and should not be pre-instantiated in the scene. Please consider removing this avatar from the scene.";
         private const string BigHandsIntegrationGuid   = "2f7a5d0166ab0d041bed38f7cc6affef";
         private const string SmallHandsIntegrationGuid = "dde1cc2a360069149a781772e8410006";
 
@@ -832,6 +850,8 @@ namespace UltimateXR.Editor.Avatar
         private SerializedProperty _propertyRenderMode;
         private SerializedProperty _propertyShowControllerHands;
         private SerializedProperty _propertyAvatarRenderers;
+        private SerializedProperty _propertyPartialAvatarHiddenRenderers;
+        private SerializedProperty _propertyFirstPersonHiddenRenderers;
         private SerializedProperty _propertyRigType;
         private SerializedProperty _propertyRigExpandedInitialized;
         private SerializedProperty _propertyRigFoldout;

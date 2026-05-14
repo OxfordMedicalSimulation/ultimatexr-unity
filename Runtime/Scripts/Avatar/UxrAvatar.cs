@@ -625,7 +625,7 @@ namespace UltimateXR.Avatar
         /// <summary>
         ///     Gets the default hand pose name or null if there isn't any default hand pose set.
         /// </summary>
-        public string DefaultHandPoseName
+        public virtual string DefaultHandPoseName
         {
             get
             {
@@ -1442,7 +1442,7 @@ namespace UltimateXR.Avatar
         ///     <see cref="HandPoseChanged" />).
         /// </param>
         /// <returns>Whether the pose was found</returns>
-        public bool SetCurrentHandPose(UxrHandSide handSide, string poseName, float blendValue = 0.0f, bool propagateEvents = true)
+        public virtual bool SetCurrentHandPose(UxrHandSide handSide, string poseName, float blendValue = 0.0f, bool propagateEvents = true)
         {
             if (string.IsNullOrEmpty(poseName))
             {

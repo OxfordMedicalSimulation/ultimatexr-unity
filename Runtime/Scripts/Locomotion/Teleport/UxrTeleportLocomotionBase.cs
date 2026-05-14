@@ -26,8 +26,8 @@ namespace UltimateXR.Locomotion.Teleport
 
         // General parameters
 
-        [SerializeField]                                                     private UxrHandSide          _controllerHand       = UxrHandSide.Left;
-        [SerializeField]                                                     private bool                 _useControllerForward = true;
+        [SerializeField] protected UxrHandSide _controllerHand = UxrHandSide.Left;
+        [SerializeField] protected bool _useControllerForward = true;
         [SerializeField]                                                     private bool                 _parentToDestination;
         [SerializeField]                                                     private float                _shakeFilter                   = 0.4f;
         [SerializeField]                                                     private UxrTranslationType   _translationType               = UxrTranslationType.Fade;
@@ -1248,7 +1248,7 @@ namespace UltimateXR.Locomotion.Teleport
         ///     Notifies a change in the currently targeted <see cref="UxrTeleportSpawnCollider" /> component.
         /// </summary>
         /// <param name="teleportSpawnCollider">New currently targeted component or null if none is selected</param>
-        private void NotifyTeleportSpawnCollider(UxrTeleportSpawnCollider teleportSpawnCollider)
+        protected virtual void NotifyTeleportSpawnCollider(UxrTeleportSpawnCollider teleportSpawnCollider)
         {
             if (teleportSpawnCollider && teleportSpawnCollider.enabled)
             {
@@ -1472,6 +1472,11 @@ namespace UltimateXR.Locomotion.Teleport
                 }
             }
         }
+
+        /// <summary>
+        /// Gets the current teleport spawn collider <see cref="UxrTeleportSpawnCollider" /> .
+        /// </summary>
+        protected UxrTeleportSpawnCollider LastSpawnCollider => _lastSpawnCollider;
 
         #endregion
 

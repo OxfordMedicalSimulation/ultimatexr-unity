@@ -431,7 +431,8 @@ namespace UltimateXR.UI.UnityInputModule
         ///     Processes the pointer events.
         /// </summary>
         /// <param name="pointerEventData">Pointer event data</param>
-        protected virtual void ProcessPointerEvents(UxrPointerEventData pointerEventData)
+        /// <param name="useDefaultHaptics"> When false, default haptics are omitted</param>
+        protected virtual void ProcessPointerEvents(UxrPointerEventData pointerEventData, bool useDefaultHaptics = false)
         {
             // Handle events
 
@@ -454,25 +455,28 @@ namespace UltimateXR.UI.UnityInputModule
 
             // Default haptic feedback if we don't have UxrControlInput
 
-            if (pressedNow && !pressedBefore && pointerEventData.pointerPress.GetComponent<UxrControlInput>() == null)
+            if (useDefaultHaptics)
             {
-                if (UxrAvatar.LocalAvatarInput)
-                {
-                    UxrAvatar.LocalAvatarInput.SendHapticFeedback(pointerEventData.HandSide, UxrHapticClipType.Click, 0.2f);
-                }
-            }
+	            if (pressedNow && !pressedBefore && pointerEventData.pointerPress.GetComponent<UxrControlInput>() == null)
+	            {
+		            if (UxrAvatar.LocalAvatarInput)
+		            {
+			            UxrAvatar.LocalAvatarInput.SendHapticFeedback(pointerEventData.HandSide, UxrHapticClipType.Click, 0.2f);
+		            }
+	            }
 
-            if (pointerEventData.GameObjectClicked)
-            {
-                if (pointerEventData.GameObjectClicked.GetComponent<UxrControlInput>() == null)
-                {
-                    if (UxrAvatar.LocalAvatarInput)
-                    {
-                        UxrAvatar.LocalAvatarInput.SendHapticFeedback(pointerEventData.HandSide, UxrHapticClipType.Click, 0.6f);
-                    }
-                }
+	            if (pointerEventData.GameObjectClicked)
+	            {
+		            if (pointerEventData.GameObjectClicked.GetComponent<UxrControlInput>() == null)
+		            {
+			            if (UxrAvatar.LocalAvatarInput)
+			            {
+				            UxrAvatar.LocalAvatarInput.SendHapticFeedback(pointerEventData.HandSide, UxrHapticClipType.Click, 0.6f);
+			            }
+		            }
 
-                pointerEventData.GameObjectClicked = null;
+		            pointerEventData.GameObjectClicked = null;
+	            }
             }
 
             pointerEventData.Speed = pointerEventData.delta.magnitude / Time.deltaTime;

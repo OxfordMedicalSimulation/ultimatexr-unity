@@ -954,26 +954,40 @@ namespace UltimateXR.Manipulation
                     }
                 }
 
+                bool hasPossibleGrabs = s_possibleGrabs.TryGetValue(grabbable, out List<int> cachedGrabPoints);
+                bool hasEnabledVisual = false;
+
                 for (int point = 0; point < grabbable.GrabPointCount; ++point)
                 {
-                    GameObject enableOnHandNear = grabbable.GetGrabPoint(point).EnableOnHandNear;
+	                bool enableObject = hasPossibleGrabs && cachedGrabPoints.Contains(point);
 
-                    if (enableOnHandNear)
-                    {
-                        bool enableObject = false;
+	                UxrManipulationEventArgs hoverEventArgs = new()
+	                {
+		                GrabbableObject = grabbable,
+		                GrabPointIndex = point
+	                };
 
-                        if (s_possibleGrabs.TryGetValue(grabbable, out List<int> grabPoints))
-                        {
-                            enableObject = grabPoints.Contains(point);
-                        }
+	                if (enableObject)
+	                {
+		                grabbable.RaiseHoverStartEvent(hoverEventArgs);
+	                }
+	                else
+	                {
+		                grabbable.RaiseHoverStopEvent(hoverEventArgs);
+	                }
 
-                        if (enableObject && !enableOnHandNear.activeSelf)
-                        {
-                            enableOnHandNear.SetActive(true);
-                            break;
-                        }
-                    }
+	                GameObject enableOnHandNear = grabbable.GetGrabPoint(point).EnableOnHandNear;
+
+	                if (enableOnHandNear && !hasEnabledVisual)
+	                {
+		                if (enableObject && !enableOnHandNear.activeSelf)
+		                {
+			                enableOnHandNear.SetActive(true);
+			                hasEnabledVisual = true;
+		                }
+	                }
                 }
+                
             }
 
             // Look for empty hand being able to grab something from an anchor to update anchor visual feedback objects later and also raise events. First pass: gather info.

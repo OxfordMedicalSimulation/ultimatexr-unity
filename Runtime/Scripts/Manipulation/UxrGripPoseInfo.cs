@@ -72,14 +72,10 @@ namespace UltimateXR.Manipulation
                 
                 return _handPoseName;
             }
-        }
 
-        public string HandPoseName
-        {
-            get => _handPoseName;
             set => _handPoseName = value;
         }
-
+        
         /// <summary>
         ///     Gets or sets the pose blend value if the pose has the possibility of blending. Blending is used to blend between
         ///     open/closed grips or other animations.
@@ -130,7 +126,5 @@ namespace UltimateXR.Manipulation
         }
 
         #endregion
-
-        private string _handPoseName;
     }
 }

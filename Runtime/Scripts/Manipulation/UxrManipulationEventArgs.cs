@@ -128,7 +128,7 @@ namespace UltimateXR.Manipulation
         public UxrGrabbableObject GrabbableObject
         {
             get => _grabbableObject;
-            private set => _grabbableObject = value;
+            set => _grabbableObject = value;
         }
 
         /// <summary>
@@ -138,7 +138,7 @@ namespace UltimateXR.Manipulation
         public UxrGrabbableObjectAnchor GrabbableAnchor
         {
             get => _grabbableAnchor;
-            private set => _grabbableAnchor = value;
+            set => _grabbableAnchor = value;
         }
 
         /// <summary>
@@ -148,7 +148,7 @@ namespace UltimateXR.Manipulation
         public UxrGrabber Grabber
         {
             get => _grabber;
-            private set => _grabber = value;
+            set => _grabber = value;
         }
 
         /// <summary>
@@ -158,7 +158,7 @@ namespace UltimateXR.Manipulation
         public int GrabPointIndex
         {
             get => _grabPointIndex;
-            private set => _grabPointIndex = value;
+            internal set => _grabPointIndex = value;
         }
 
         /// <summary>
@@ -180,6 +180,18 @@ namespace UltimateXR.Manipulation
             get => _isSwitchHands;
             private set => _isSwitchHands = value;
         }
+
+
+        /// <summary>
+        ///     Gets whether the event was the result of passing the object from one anchor to another. Can be meaningless if the
+        ///     event doesn't use this property. Added by OMS (Susie).
+        /// </summary>
+        public bool IsSwitchAnchor
+        {
+	        get => _isSwitchAnchor;
+	        private set => _isSwitchAnchor = value;
+        }
+
 
         /// <summary>
         ///     Gets the release velocity for release events.
@@ -301,6 +313,7 @@ namespace UltimateXR.Manipulation
             serializer.Serialize(ref _grabPointIndex);
             serializer.Serialize(ref _isMultiHands);
             serializer.Serialize(ref _isSwitchHands);
+            serializer.Serialize(ref _isSwitchAnchor);
 
             if (EventType == UxrManipulationEventType.Grab)
             {
@@ -583,6 +596,7 @@ namespace UltimateXR.Manipulation
             _grabPointIndex             = -1;
             _isMultiHands               = false;
             _isSwitchHands              = false;
+            _isSwitchAnchor = false;
             _releaseVelocity            = default;
             _releaseAngularVelocity     = default;
             _placementOptions           = UxrPlacementOptions.None;
@@ -604,6 +618,7 @@ namespace UltimateXR.Manipulation
         private UxrGrabber               _grabber;
         private int                      _grabPointIndex;
         private bool                     _isMultiHands;
+        private bool _isSwitchAnchor;
         private bool                     _isSwitchHands;
         private Vector3                  _releaseVelocity;
         private Vector3                  _releaseAngularVelocity;

@@ -37,6 +37,7 @@ namespace UltimateXR.UI.UnityInputModule
         [SerializeField] protected bool                _disableOtherInputModules;
         [SerializeField] protected bool                _autoEnableOnWorldCanvases    = true;
         [SerializeField] protected bool                _autoAssignEventCamera        = true;
+        [SerializeField] protected bool                _uiClickOnPress               = true;
         [SerializeField] protected UxrInteractionTypes _interactionTypesOnAutoEnable = UxrInteractionTypes.FingerTips | UxrInteractionTypes.LaserPointers;
         [SerializeField] protected float               _fingerTipMinHoverDistance    = UxrFingerTipRaycaster.FingerTipMinHoverDistanceDefault;
         [SerializeField] protected int                 _dragThreshold                = 40;
@@ -72,11 +73,11 @@ namespace UltimateXR.UI.UnityInputModule
         ///     Gets, for those canvases that have been set up automatically using <see cref="AutoEnableOnWorldCanvases" />, the
         ///     type of interaction that will be used.
         /// </summary>
-        public UxrInteractionType InteractionTypeOnAutoEnable => _interactionTypeOnAutoEnable;
+        public UxrInteractionTypes InteractionTypesOnAutoEnable => _interactionTypesOnAutoEnable;
 
         /// <summary>
         ///     Gets the minimum distance from a finger tip to a canvas in order to generate hovering events, when
-        ///     <see cref="InteractionTypeOnAutoEnable" /> is <see cref="UxrInteractionType.FingerTips" />,
+        ///     <see cref="InteractionTypesOnAutoEnable" /> is <see cref="UxrInteractionTypes.FingerTips" />,
         /// </summary>
         public float FingerTipMinHoverDistance => _fingerTipMinHoverDistance;
 
@@ -576,10 +577,9 @@ namespace UltimateXR.UI.UnityInputModule
 
                 // If the UI element has scrolling, click will require press+release to support dragging.
                 // If not, it's a little more user friendly in VR to require just a press to avoid missing clicks.
-                // TODO: Be able to control if this feature is enabled via an inspector parameter.
-                // TODO: Check compatibility with drag&drop. 
+                // TODO: Check compatibility with drag&drop.
 
-                if (pointerEventData.pointerPress && !RequiresScrolling(pointerEventData.pointerPress))
+                if (_uiClickOnPress && pointerEventData.pointerPress && !RequiresScrolling(pointerEventData.pointerPress))
                 {
                     // UI element doesn't require scrolling. Perform a click on press instead of a click on release.
                     pointerEventData.eligibleForClick = false;

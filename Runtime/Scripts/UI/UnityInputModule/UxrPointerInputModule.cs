@@ -405,14 +405,10 @@ namespace UltimateXR.UI.UnityInputModule
             int first           = -1;
             int candidatesCount = candidates.Count;
 
-            // First search for the first raycast that shares canvas with the pointerEnter event, but only while a
-            // press/drag is already in progress. This is what keeps a drag or scroll gesture from jumping to a
-            // different canvas that happens to raycast closer for a frame. Outside of an active press/drag (for
-            // example when a new canvas such as a popup appears in front of the one currently hovered) the nearest
-            // candidate should win instead of being stuck on the previously entered canvas.
+            // First search for the first raycast that shares canvas with the pointerEnter event
 
-            bool stickToInitialCanvas = pointerEventData.pointerPress != null || pointerEventData.dragging;
-            UxrCanvas initialCanvas = stickToInitialCanvas && pointerEventData.pointerEnter != null ? pointerEventData.pointerEnter.GetTopmostCanvas() : null;
+            UxrCanvas initialCanvas = pointerEventData.pointerEnter != null ? pointerEventData.pointerEnter.GetTopmostCanvas() : null;
+
 
             for (int i = 0; i < candidatesCount; ++i)
             {

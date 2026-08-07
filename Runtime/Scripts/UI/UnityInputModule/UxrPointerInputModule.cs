@@ -34,13 +34,13 @@ namespace UltimateXR.UI.UnityInputModule
     {
         #region Inspector Properties/Serialized Fields
 
-        [SerializeField] protected bool               _disableOtherInputModules;
-        [SerializeField] protected bool               _autoEnableOnWorldCanvases   = true;
-        [SerializeField] protected bool               _autoAssignEventCamera       = true;
-        [SerializeField] protected UxrInteractionType _interactionTypeOnAutoEnable = UxrInteractionType.FingerTips;
-        [SerializeField] protected float              _fingerTipMinHoverDistance   = UxrFingerTipRaycaster.FingerTipMinHoverDistanceDefault;
-        [SerializeField] protected int                _dragThreshold               = 40;
-
+        [SerializeField] protected bool                _disableOtherInputModules;
+        [SerializeField] protected bool                _autoEnableOnWorldCanvases    = true;
+        [SerializeField] protected bool                _autoAssignEventCamera        = true;
+        [SerializeField] protected UxrInteractionTypes _interactionTypesOnAutoEnable = UxrInteractionTypes.FingerTips | UxrInteractionTypes.LaserPointers;
+        [SerializeField] protected float               _fingerTipMinHoverDistance    = UxrFingerTipRaycaster.FingerTipMinHoverDistanceDefault;
+        [SerializeField] protected int                 _dragThreshold                = 40;
+        [SerializeField] protected bool               _enableDragSpeedHaptics;
         #endregion
 
         #region Public Types & Data
@@ -79,6 +79,12 @@ namespace UltimateXR.UI.UnityInputModule
         ///     <see cref="InteractionTypeOnAutoEnable" /> is <see cref="UxrInteractionType.FingerTips" />,
         /// </summary>
         public float FingerTipMinHoverDistance => _fingerTipMinHoverDistance;
+
+        /// <summary>
+        ///     Gets whether continuous haptic feedback proportional to drag speed is sent while dragging a UI element
+        ///     (for example a <see cref="ScrollRect" /> or <see cref="Slider" />). Disabled by default.
+        /// </summary>
+        public bool EnableDragSpeedHaptics => _enableDragSpeedHaptics;
 
         #endregion
 
@@ -292,7 +298,7 @@ namespace UltimateXR.UI.UnityInputModule
         }
 
         /// <summary>
-        ///     Subscribes to events and sets up the haptics coroutine.
+        ///     Subscribes to events and, if enabled, sets up the drag speed haptics coroutine.
         /// </summary>
         protected override void OnEnable()
         {
@@ -302,11 +308,14 @@ namespace UltimateXR.UI.UnityInputModule
             UxrControlInput.GlobalReleased += UxrControlInput_GlobalReleased;
             UxrControlInput.GlobalClicked  += UxrControlInput_GlobalClicked;
 
-            _coroutineDragHaptics = StartCoroutine(CoroutineDragHaptics());
+            if (_enableDragSpeedHaptics)
+            {
+                _coroutineDragHaptics = StartCoroutine(CoroutineDragHaptics());
+            }
         }
 
         /// <summary>
-        ///     Unsubscribes from events and stops the haptics coroutine.
+        ///     Unsubscribes from events and, if running, stops the drag speed haptics coroutine.
         /// </summary>
         protected override void OnDisable()
         {
@@ -316,7 +325,11 @@ namespace UltimateXR.UI.UnityInputModule
             UxrControlInput.GlobalReleased -= UxrControlInput_GlobalReleased;
             UxrControlInput.GlobalClicked  -= UxrControlInput_GlobalClicked;
 
-            StopCoroutine(_coroutineDragHaptics);
+            if (_coroutineDragHaptics != null)
+            {
+                StopCoroutine(_coroutineDragHaptics);
+                _coroutineDragHaptics = null;
+            }
         }
 
         /// <summary>
@@ -391,9 +404,15 @@ namespace UltimateXR.UI.UnityInputModule
             int first           = -1;
             int candidatesCount = candidates.Count;
 
-            // First search for the first raycast that shares canvas with the pointerEnter event
+            // First search for the first raycast that shares canvas with the pointerEnter event, but only while a
+            // press/drag is already in progress. This is what keeps a drag or scroll gesture from jumping to a
+            // different canvas that happens to raycast closer for a frame. Outside of an active press/drag (for
+            // example when a new canvas such as a popup appears in front of the one currently hovered) the nearest
+            // candidate should win instead of being stuck on the previously entered canvas.
 
-            UxrCanvas initialCanvas = pointerEventData.pointerEnter != null ? pointerEventData.pointerEnter.GetTopmostCanvas() : null;
+            bool stickToInitialCanvas = pointerEventData.pointerPress != null || pointerEventData.dragging;
+            UxrCanvas initialCanvas = stickToInitialCanvas && pointerEventData.pointerEnter != null ? pointerEventData.pointerEnter.GetTopmostCanvas() : null;
+
 
             for (int i = 0; i < candidatesCount; ++i)
             {
@@ -707,7 +726,7 @@ namespace UltimateXR.UI.UnityInputModule
 
                 foreach (UxrCanvas canvas in canvasVR)
                 {
-                    if (canvas.CanvasInteractionType == UxrInteractionType.LaserPointers &&
+                    if (canvas.CanvasInteractionTypes.HasFlag(UxrInteractionTypes.LaserPointers) &&
                         canvas.AutoEnableLaserPointer                                    &&
                         canvas.IsCompatible(laserPointer.HandSide)                       &&
                         raycast.distance <= canvas.AutoEnableDistance)
@@ -721,7 +740,8 @@ namespace UltimateXR.UI.UnityInputModule
         }
 
         /// <summary>
-        ///     Coroutine that sends haptic feedback when elements are being dragged.
+        ///     Coroutine that sends haptic feedback when elements are being dragged. Only runs while
+        ///     <see cref="EnableDragSpeedHaptics" /> is enabled.
         /// </summary>
         /// <returns>Coroutine enumerator</returns>
         private IEnumerator CoroutineDragHaptics()
@@ -1211,7 +1231,7 @@ namespace UltimateXR.UI.UnityInputModule
         private          MethodInfo                                       _changeEventModuleMethod;
         private          object[]                                         _changeEventModuleParameters;
 
-        private Coroutine _coroutineDragHaptics;
+        private Coroutine       _coroutineDragHaptics;
         private WaitForSeconds _waitForHapticSampleDurationSeconds;
 
         #endregion

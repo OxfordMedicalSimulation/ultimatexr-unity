@@ -575,14 +575,18 @@ namespace UltimateXR.UI.UnityInputModule
                     ExecuteEvents.Execute(pointerEventData.pointerDrag, pointerEventData, ExecuteEvents.initializePotentialDrag);
                 }
 
-                // If the UI element has scrolling, click will require press+release to support dragging.
-                // If not, it's a little more user friendly in VR to require just a press to avoid missing clicks.
+                // It's a little more user friendly in VR to require just a press to avoid missing clicks.
+                // The whole interaction is resolved here on press: nothing is sent again on release.
                 // TODO: Check compatibility with drag&drop.
 
-                if (_uiClickOnPress && pointerEventData.pointerPress && !RequiresScrolling(pointerEventData.pointerPress))
+                if (_uiClickOnPress && pointerEventData.pointerPress)
                 {
-                    // UI element doesn't require scrolling. Perform a click on press instead of a click on release.
+                    // Perform a click on press instead of a click on release. Clearing eligibleForClick is what stops
+                    // the release block below from sending a second click.
                     pointerEventData.eligibleForClick = false;
+
+                    // Release straight away so the control doesn't stay visually pressed down.
+                    ExecuteEvents.Execute(pointerEventData.pointerPress, pointerEventData, ExecuteEvents.pointerUpHandler);
                     ExecuteEvents.Execute(pointerEventData.pointerPress, pointerEventData, ExecuteEvents.pointerClickHandler);
                     pointerEventData.GameObjectClicked = pointerEventData.pointerPress;
 
@@ -596,7 +600,11 @@ namespace UltimateXR.UI.UnityInputModule
             // PointerUp notification
             if (pointerEventData.ReleasedThisFrame)
             {
-                if (ExecuteEvents.Execute(pointerEventData.pointerPress, pointerEventData, ExecuteEvents.pointerUpHandler))
+                // If the click was already resolved on press, the up event was sent back then too. Sending it again here
+                // would give the control a second Released for a single interaction, so skip it.
+                bool resolvedOnPress = _uiClickOnPress && !pointerEventData.eligibleForClick;
+
+                if (!resolvedOnPress && ExecuteEvents.Execute(pointerEventData.pointerPress, pointerEventData, ExecuteEvents.pointerUpHandler))
                 {
                     if (UxrGlobalSettings.Instance.LogLevelUI >= UxrLogLevel.Relevant)
                     {

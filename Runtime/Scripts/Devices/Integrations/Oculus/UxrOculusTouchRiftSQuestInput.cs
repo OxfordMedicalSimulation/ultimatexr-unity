@@ -19,7 +19,7 @@ namespace UltimateXR.Devices.Integrations.Oculus
         /// <summary>
         ///     Gets the SDK dependency: Oculus SDK.
         /// </summary>
-        public override string SDKDependency => UxrManager.SdkOculus;
+        public override string SDKDependency => UxrConstants.SdkOculus;
 
         /// <inheritdoc />
         public override UxrControllerSetupType SetupType => UxrControllerSetupType.Dual;
@@ -33,13 +33,13 @@ namespace UltimateXR.Devices.Integrations.Oculus
         /// <inheritdoc />
         public override bool HasControllerElements(UxrHandSide handSide, UxrControllerElements controllerElements)
         {
-            uint validElements = (uint)(UxrControllerElements.Joystick |
-                                        UxrControllerElements.Grip |
-                                        UxrControllerElements.Trigger |
+            uint validElements = (uint)(UxrControllerElements.Joystick      |
+                                        UxrControllerElements.Grip          |
+                                        UxrControllerElements.Trigger       |
                                         UxrControllerElements.ThumbCapSense |
-                                        UxrControllerElements.Button1 |
-                                        UxrControllerElements.Button2 |
-                                        UxrControllerElements.Menu |
+                                        UxrControllerElements.Button1       |
+                                        UxrControllerElements.Button2       |
+                                        UxrControllerElements.Menu          |
                                         UxrControllerElements.DPad);
 
             if (handSide == UxrHandSide.Right)
@@ -53,10 +53,10 @@ namespace UltimateXR.Devices.Integrations.Oculus
 
         #endregion
 
-        #region Public Overrides UxrUnityXRControllerInput
+        #region Protected Overrides UxrUnityXRControllerInput
 
         /// <inheritdoc />
-        public override IEnumerable<string> ControllerNames
+        protected override IEnumerable<string> ControllerNames
         {
             get
             {

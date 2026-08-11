@@ -211,7 +211,7 @@ namespace UltimateXR.Avatar.Rig
             Vector3 b = Wrist.InverseTransformPoint(Index.Proximal.position);
             Vector3 c = Wrist.InverseTransformPoint(Little.Proximal.position);
 
-            center = _wrist.TransformPoint(Vector3Ext.Average(a, b, c));
+            center = _wrist.TransformPoint(Vector3Ext.Average(new[] {a, b, c}));
             return true;
         }
 
@@ -230,7 +230,10 @@ namespace UltimateXR.Avatar.Rig
                 return false;
             }
 
-            direction = Wrist.TransformDirection(Vector3.Cross(Wrist.InverseTransformPoint(Index.Proximal.position), Wrist.InverseTransformPoint(Little.Proximal.position)).normalized);
+            Vector3 localPalmToIndex  = Wrist.InverseTransformPoint(Index.Proximal.position).normalized;
+            Vector3 localPalmToLittle = Wrist.InverseTransformPoint(Little.Proximal.position).normalized;
+
+            direction = Wrist.TransformDirection(Vector3.Cross(localPalmToIndex, localPalmToLittle)).normalized;
 
             if (handSide == UxrHandSide.Right)
             {

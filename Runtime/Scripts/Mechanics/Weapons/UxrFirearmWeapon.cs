@@ -1,10 +1,11 @@
-﻿// --------------------------------------------------------------------------------------------------------------------
+// --------------------------------------------------------------------------------------------------------------------
 // <copyright file="UxrFirearmWeapon.cs" company="VRMADA">
 //   Copyright (c) VRMADA, All rights reserved.
 // </copyright>
 // --------------------------------------------------------------------------------------------------------------------
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using UltimateXR.Avatar;
 using UltimateXR.Core;
 using UltimateXR.Devices;
@@ -23,7 +24,7 @@ namespace UltimateXR.Mechanics.Weapons
     ///     <see cref="UxrProjectileSource.ShotTypes" />.
     /// </summary>
     [RequireComponent(typeof(UxrProjectileSource))]
-    public class UxrFirearmWeapon : UxrWeapon
+    public partial class UxrFirearmWeapon : UxrWeapon
     {
         #region Inspector Properties/Serialized Fields
 
@@ -50,12 +51,12 @@ namespace UltimateXR.Mechanics.Weapons
         /// <returns>Whether it is ready to shoot</returns>
         public bool IsLoaded(int triggerIndex)
         {
-            if (triggerIndex < 0 || triggerIndex >= _triggers.Count)
+            if (_runtimeTriggers.TryGetValue(triggerIndex, out RuntimeTriggerInfo runtimeTrigger))
             {
-                return false;
+                return runtimeTrigger.HasReloaded;
             }
 
-            return IsLoaded(_triggers[triggerIndex]);
+            return false;
         }
 
         /// <summary>
@@ -64,12 +65,14 @@ namespace UltimateXR.Mechanics.Weapons
         /// <param name="triggerIndex">Index in <see cref="_triggers" /></param>
         public void Reload(int triggerIndex)
         {
-            if (triggerIndex < 0 || triggerIndex >= _triggers.Count)
+            if (!_runtimeTriggers.TryGetValue(triggerIndex, out RuntimeTriggerInfo runtimeTrigger))
             {
                 return;
             }
 
-            Reload(_triggers[triggerIndex]);
+            BeginSync();
+            runtimeTrigger.HasReloaded = true;
+            EndSyncMethod(SyncParams(triggerIndex));
         }
 
         /// <summary>
@@ -84,7 +87,8 @@ namespace UltimateXR.Mechanics.Weapons
                 return false;
             }
 
-            return HasMagAttached(_triggers[triggerIndex]);
+            UxrFirearmTrigger trigger = _triggers[triggerIndex];
+            return trigger.AmmunitionMagAnchor != null && trigger.AmmunitionMagAnchor.CurrentPlacedObject != null;
         }
 
         /// <summary>
@@ -99,7 +103,15 @@ namespace UltimateXR.Mechanics.Weapons
                 return 0;
             }
 
-            return GetAmmoCapacity(_triggers[triggerIndex]);
+            UxrFirearmTrigger trigger = _triggers[triggerIndex];
+
+            if (trigger.AmmunitionMagAnchor != null && trigger.AmmunitionMagAnchor.CurrentPlacedObject != null)
+            {
+                UxrFirearmMag mag = trigger.AmmunitionMagAnchor.CurrentPlacedObject.GetCachedComponent<UxrFirearmMag>();
+                return mag != null ? mag.Capacity : 0;
+            }
+
+            return 0;
         }
 
         /// <summary>
@@ -114,7 +126,23 @@ namespace UltimateXR.Mechanics.Weapons
                 return 0;
             }
 
-            return GetAmmoLeft(_triggers[triggerIndex]);
+            UxrFirearmTrigger trigger = _triggers[triggerIndex];
+
+            if (trigger.AmmunitionMagAnchor != null)
+            {
+                if (trigger.AmmunitionMagAnchor.CurrentPlacedObject != null)
+                {
+                    UxrFirearmMag mag = trigger.AmmunitionMagAnchor.CurrentPlacedObject.GetCachedComponent<UxrFirearmMag>();
+
+                    return mag != null ? mag.Rounds : 0;
+                }
+            }
+            else
+            {
+                return int.MaxValue;
+            }
+
+            return 0;
         }
 
         /// <summary>
@@ -129,22 +157,42 @@ namespace UltimateXR.Mechanics.Weapons
                 return;
             }
 
-            SetAmmoLeft(_triggers[triggerIndex], ammo);
+            UxrFirearmTrigger trigger = _triggers[triggerIndex];
+
+            if (trigger.AmmunitionMagAnchor != null && trigger.AmmunitionMagAnchor.CurrentPlacedObject != null)
+            {
+                UxrFirearmMag mag = trigger.AmmunitionMagAnchor.CurrentPlacedObject.GetCachedComponent<UxrFirearmMag>();
+
+                if (mag != null)
+                {
+                    mag.Rounds = ammo;
+                }
+            }
         }
 
         /// <summary>
-        ///     Sets the trigger pressed value.
+        ///     Sets the trigger pressed amount.
         /// </summary>
         /// <param name="triggerIndex">Index in <see cref="_triggers" /></param>
-        /// <param name="triggerValue">Pressed value between range [0.0, 1.0]</param>
-        public void SetTriggerPressed(int triggerIndex, float triggerValue)
+        /// <param name="amount">Pressed amount between range [0.0, 1.0]</param>
+        public void SetTriggerPressedAmount(int triggerIndex, float amount)
         {
             if (triggerIndex < 0 || triggerIndex >= _triggers.Count)
             {
                 return;
             }
 
-            SetTriggerPressed(_triggers[triggerIndex], triggerValue);
+            if (!_runtimeTriggers.TryGetValue(triggerIndex, out RuntimeTriggerInfo runtimeTrigger))
+            {
+                return;
+            }
+
+            UxrFirearmTrigger trigger = _triggers[triggerIndex];
+
+            if (trigger.TriggerTransform)
+            {
+                trigger.TriggerTransform.localRotation = runtimeTrigger.TriggerInitialLocalRotation * Quaternion.AngleAxis(trigger.TriggerRotationDegrees * amount, trigger.TriggerRotationAxis);
+            }
         }
 
         /// <summary>
@@ -167,12 +215,54 @@ namespace UltimateXR.Mechanics.Weapons
                 return false;
             }
 
-            return TryToShootRound(_triggers[triggerIndex]);
+            if (!_runtimeTriggers.TryGetValue(triggerIndex, out RuntimeTriggerInfo runtimeTrigger))
+            {
+                return false;
+            }
+
+            UxrFirearmTrigger trigger = _triggers[triggerIndex];
+
+            if (GetAmmoLeft(triggerIndex) > 0 && runtimeTrigger.LastShotTimer <= 0.0f)
+            {
+                SetAmmoLeft(triggerIndex, GetAmmoLeft(triggerIndex) - 1);
+
+                runtimeTrigger.LastShotTimer = trigger.MaxShotFrequency > 0 ? 1.0f / trigger.MaxShotFrequency : -1.0f;
+
+                // TODO: here we probably should add some randomization depending on recoil using the additional optional parameters
+                _weaponSource.Shoot(trigger.ProjectileShotIndex);
+
+                runtimeTrigger.RecoilTimer = trigger.RecoilDurationSeconds;
+
+                // Audio
+
+                trigger.ShotAudio?.Play(_weaponSource.GetShotOrigin(trigger.ProjectileShotIndex));
+
+                // Raise events
+
+                OnProjectileShot(triggerIndex);
+                return true;
+            }
+
+            return false;
         }
 
         #endregion
 
         #region Unity
+
+        /// <inheritdoc />
+        protected override void Awake()
+        {
+            base.Awake();
+
+            for (int i = 0; i < _triggers.Count; ++i)
+            {
+                if (!_runtimeTriggers.ContainsKey(i))
+                {
+                    _runtimeTriggers.Add(i, new RuntimeTriggerInfo());
+                }
+            }
+        }
 
         /// <summary>
         ///     Subscribes to events.
@@ -190,6 +280,12 @@ namespace UltimateXR.Mechanics.Weapons
 
             foreach (UxrFirearmTrigger trigger in _triggers)
             {
+                if (trigger.TriggerGrabbable != null)
+                {
+                    trigger.TriggerGrabbable.Released += Trigger_Released;
+                    trigger.TriggerGrabbable.Placed   += Trigger_Placed;
+                }
+
                 if (trigger.AmmunitionMagAnchor != null)
                 {
                     trigger.AmmunitionMagAnchor.Placed  += MagTarget_Placed;
@@ -214,6 +310,12 @@ namespace UltimateXR.Mechanics.Weapons
 
             foreach (UxrFirearmTrigger trigger in _triggers)
             {
+                if (trigger.TriggerGrabbable != null)
+                {
+                    trigger.TriggerGrabbable.Released -= Trigger_Released;
+                    trigger.TriggerGrabbable.Placed   -= Trigger_Placed;
+                }
+
                 if (trigger.AmmunitionMagAnchor != null)
                 {
                     trigger.AmmunitionMagAnchor.Placed  -= MagTarget_Placed;
@@ -231,14 +333,19 @@ namespace UltimateXR.Mechanics.Weapons
 
             _weaponSource = GetCachedComponent<UxrProjectileSource>();
 
-            foreach (UxrFirearmTrigger trigger in _triggers)
+            for (int i = 0; i < _triggers.Count; i++)
             {
-                trigger.LastShotTimer = -1.0f;
-                trigger.HasReloaded   = true;
+                UxrFirearmTrigger trigger = _triggers[i];
 
-                if (trigger.TriggerTransform)
+                if (_runtimeTriggers.TryGetValue(i, out RuntimeTriggerInfo info))
                 {
-                    trigger.TriggerInitialLocalRotation = trigger.TriggerTransform.localRotation;
+                    info.LastShotTimer = -1.0f;
+                    info.HasReloaded   = true;
+
+                    if (trigger.TriggerTransform)
+                    {
+                        info.TriggerInitialLocalRotation = trigger.TriggerTransform.localRotation;
+                    }
                 }
 
                 if (trigger.AmmunitionMagAnchor != null)
@@ -263,90 +370,144 @@ namespace UltimateXR.Mechanics.Weapons
         #region Event Handling Methods
 
         /// <summary>
+        ///     Called when the grip of a grabbable object for a given trigger was released.
+        /// </summary>
+        /// <param name="sender">Sender</param>
+        /// <param name="e">Event parameters</param>
+        private void Trigger_Released(object sender, UxrManipulationEventArgs e)
+        {
+            if (e.Grabber != null && e.Grabber.Avatar.AvatarMode == UxrAvatarMode.Local)
+            {
+                SyncAmmoLeft(e.GrabbableObject);
+            }
+        }
+
+        /// <summary>
+        ///     Called when the grip of a grabbable object for a given trigger was placed.
+        /// </summary>
+        /// <param name="sender">Sender</param>
+        /// <param name="e">Event parameters</param>
+        private void Trigger_Placed(object sender, UxrManipulationEventArgs e)
+        {
+            if (e.Grabber != null && e.Grabber.Avatar.AvatarMode == UxrAvatarMode.Local)
+            {
+                SyncAmmoLeft(e.GrabbableObject);
+            }
+        }
+
+        /// <summary>
         ///     Called after the avatars have been updated. Updates the hand trigger blend value.
         /// </summary>
         private void UxrManager_AvatarsUpdated()
         {
-            foreach (UxrFirearmTrigger trigger in _triggers)
+            for (int i = 0; i < _triggers.Count; i++)
             {
-                // Check if we are grabbing the given grip
+                UxrFirearmTrigger trigger = _triggers[i];
+
+                if (!_runtimeTriggers.TryGetValue(i, out RuntimeTriggerInfo runtimeTrigger))
+                {
+                    continue;
+                }
+
+                // Check if we are grabbing the given grip using the local avatar
 
                 if (trigger.TriggerGrabbable && UxrGrabManager.Instance.GetGrabbingHand(trigger.TriggerGrabbable, trigger.GrabbableGrabPointIndex, out UxrGrabber grabber))
                 {
-                    // Get the trigger press amount and use it to send it to the animation var that controls the hand trigger. Use it to rotate the trigger as well.
-
-                    float triggerPressAmount = UxrAvatar.LocalAvatarInput.GetInput1D(grabber.Side, UxrInput1D.Trigger);
-
-                    trigger.TriggerGrabbable.GetGrabPoint(trigger.GrabbableGrabPointIndex).GetGripPoseInfo(grabber.Avatar).PoseBlendValue = triggerPressAmount;
-
-                    if (trigger.TriggerTransform != null)
+                    if (grabber.Avatar.AvatarMode == UxrAvatarMode.Local)
                     {
-                        trigger.TriggerTransform.localRotation = trigger.TriggerInitialLocalRotation * Quaternion.AngleAxis(trigger.TriggerRotationDegrees * triggerPressAmount, trigger.TriggerRotationAxis);
+                        // Get the trigger press amount and use it to send it to the animation var that controls the hand trigger. Use it to rotate the trigger as well.
+
+                        float triggerPressAmount = UxrAvatar.LocalAvatarInput.GetInput1D(grabber.Side, UxrInput1D.Trigger);
+                        trigger.TriggerGrabbable.GetGrabPoint(trigger.GrabbableGrabPointIndex).GetGripPoseInfo(grabber.Avatar).PoseBlendValue = triggerPressAmount;
+                        SetTriggerPressedAmount(i, triggerPressAmount);
+
+                        // Now depending on the weapon type check if we need to shoot
+
+                        SyncTriggerPressStates(i,
+                                               UxrAvatar.LocalAvatarInput.GetButtonsPress(grabber.Side, UxrInputButtons.Trigger),
+                                               UxrAvatar.LocalAvatarInput.GetButtonsPressDown(grabber.Side, UxrInputButtons.Trigger),
+                                               UxrAvatar.LocalAvatarInput.GetButtonsPressUp(grabber.Side, UxrInputButtons.Trigger));
+                    }
+                    else
+                    {
+                        // Remote avatars will get the trigger pressed amount from the avatar pose blend amount, because poses are synchronized. 
+                        SetTriggerPressedAmount(i, grabber.Avatar.GetCurrentHandPoseBlendValue(grabber.Side));
                     }
 
-                    // Now depending on the weapon type check if we need to shoot
-
-                    bool triggerPressed   = UxrAvatar.LocalAvatarInput.GetButtonsPress(grabber.Side, UxrInputButtons.Trigger);
-                    bool triggerPressDown = UxrAvatar.LocalAvatarInput.GetButtonsPressDown(grabber.Side, UxrInputButtons.Trigger);
-                    bool shoot            = false;
+                    bool shoot = false;
 
                     switch (trigger.CycleType)
                     {
                         case UxrShotCycle.ManualReload:
                         {
-                            shoot = triggerPressDown && trigger.HasReloaded;
+                            shoot = runtimeTrigger.TriggerPressStarted && runtimeTrigger.HasReloaded;
 
                             if (shoot)
                             {
-                                trigger.HasReloaded = false;
+                                runtimeTrigger.HasReloaded = false;
                             }
                             break;
                         }
 
                         case UxrShotCycle.SemiAutomatic:
 
-                            shoot = triggerPressDown;
+                            shoot = runtimeTrigger.TriggerPressStarted;
                             break;
 
                         case UxrShotCycle.FullyAutomatic:
 
-                            shoot = triggerPressed;
+                            shoot = runtimeTrigger.TriggerPressed;
                             break;
                     }
 
-                    if (triggerPressDown && GetAmmoLeft(trigger) == 0)
+                    if (runtimeTrigger.TriggerPressStarted && GetAmmoLeft(i) == 0)
                     {
-                        trigger.ShotAudioNoAmmo?.Play(trigger.TriggerGrabbable.GetGrabbedPointGrabAlignPosition(grabber, trigger.GrabbableGrabPointIndex));
+                        trigger.ShotAudioNoAmmo?.Play(trigger.TriggerTransform != null ? trigger.TriggerTransform.position : trigger.TriggerGrabbable.GetGrabPointGrabProximityTransform(grabber, trigger.GrabbableGrabPointIndex).position);
                     }
 
                     if (shoot)
                     {
                         // Shoot!
 
-                        if (TryToShootRound(trigger))
+                        if (TryToShootRound(i))
                         {
-                            // Send haptic to the hand grabbing the grip
-
-                            UxrAvatar.LocalAvatarInput.SendHapticFeedback(grabber.Side, trigger.ShotHapticClip);
-
-                            // Send haptic to the other hand if it is also grabbing the weapon
-
-                            if (UxrGrabManager.Instance.IsHandGrabbing(grabber.Avatar, trigger.TriggerGrabbable, grabber.OppositeSide))
+                            if (grabber.Avatar.AvatarMode == UxrAvatarMode.Local)
                             {
-                                UxrAvatar.LocalAvatarInput.SendHapticFeedback(grabber.OppositeSide, trigger.ShotHapticClip);
+                                // Send haptic to the hand grabbing the grip
+
+                                UxrAvatar.LocalAvatarInput.SendHapticFeedback(grabber.Side, trigger.ShotHapticClip);
+
+                                // Send haptic to the other hand if it is also grabbing the weapon
+
+                                if (UxrGrabManager.Instance.IsHandGrabbing(grabber.Avatar, trigger.TriggerGrabbable, grabber.OppositeSide, true))
+                                {
+                                    UxrAvatar.LocalAvatarInput.SendHapticFeedback(grabber.OppositeSide, trigger.ShotHapticClip);
+                                }
                             }
+                        }
+                    }
+
+                    if (grabber.Avatar.AvatarMode == UxrAvatarMode.Local && runtimeTrigger.TriggerPressEnded)
+                    {
+                        // Sync ammo after shooting a fully automatic weapon to make sure the ammo left is the same.
+                        if (trigger.CycleType == UxrShotCycle.FullyAutomatic)
+                        {
+                            SyncAmmoLeft(i, GetAmmoLeft(i));
                         }
                     }
                 }
 
-                if (trigger.LastShotTimer > 0.0f)
+                runtimeTrigger.TriggerPressStarted = false;
+                runtimeTrigger.TriggerPressEnded   = false;
+
+                if (runtimeTrigger.LastShotTimer > 0.0f)
                 {
-                    trigger.LastShotTimer -= Time.deltaTime;
+                    runtimeTrigger.LastShotTimer -= Time.deltaTime;
                 }
 
-                if (trigger.RecoilTimer > 0.0f)
+                if (runtimeTrigger.RecoilTimer > 0.0f)
                 {
-                    trigger.RecoilTimer -= Time.deltaTime;
+                    runtimeTrigger.RecoilTimer -= Time.deltaTime;
                 }
             }
         }
@@ -407,11 +568,13 @@ namespace UltimateXR.Mechanics.Weapons
             Transform          grabbableTransform = grabbableObject.transform;
             int                grabbingHandCount  = UxrGrabManager.Instance.GetGrabbingHandCount(grabbableObject);
 
-            foreach (UxrFirearmTrigger trigger in _triggers)
+            for (int i = 0; i < _triggers.Count; i++)
             {
-                if (trigger.RecoilTimer > 0.0f)
+                UxrFirearmTrigger trigger = _triggers[i];
+                
+                if (_runtimeTriggers.TryGetValue(i, out RuntimeTriggerInfo runtimeTrigger) && runtimeTrigger.RecoilTimer > 0.0f)
                 {
-                    float recoilT = trigger.RecoilDurationSeconds > 0.0f ? (trigger.RecoilDurationSeconds - trigger.RecoilTimer) / trigger.RecoilDurationSeconds : 0.0f;
+                    float recoilT = trigger.RecoilDurationSeconds > 0.0f ? (trigger.RecoilDurationSeconds - runtimeTrigger.RecoilTimer) / trigger.RecoilDurationSeconds : 0.0f;
 
                     Vector3 recoilRight    = _recoilAxes != null ? _recoilAxes.right : grabbableTransform.right;
                     Vector3 recoilUp       = _recoilAxes != null ? _recoilAxes.up : grabbableTransform.up;
@@ -420,7 +583,7 @@ namespace UltimateXR.Mechanics.Weapons
 
                     float   amplitude    = 1.0f - recoilT;
                     Vector3 recoilOffset = grabbingHandCount == 1 ? amplitude * trigger.RecoilOffsetOneHand : amplitude * trigger.RecoilOffsetTwoHands;
-                    
+
                     grabbableTransform.position += recoilRight * recoilOffset.x + recoilUp * recoilOffset.y + recoilForward * recoilOffset.z;
                     grabbableTransform.RotateAround(recoilPosition, -recoilRight, grabbingHandCount == 1 ? amplitude * trigger.RecoilAngleOneHand : amplitude * trigger.RecoilAngleTwoHands);
                 }
@@ -445,141 +608,60 @@ namespace UltimateXR.Mechanics.Weapons
         #region Private Methods
 
         /// <summary>
-        ///     Checks whether a trigger is in a loaded state, meaning it is ready to shoot if pressed and there is any ammo left.
+        ///     Sets the trigger pressed state, to sync multiplayer.
         /// </summary>
-        /// <param name="trigger">Firearm trigger</param>
-        /// <returns>Whether it is ready to shoot</returns>
-        private static bool IsLoaded(UxrFirearmTrigger trigger)
+        /// <param name="triggerIndex">The trigger index</param>
+        /// <param name="pressed">Whether the trigger is pressed</param>
+        /// <param name="pressDown">Whether the trigger just started being pressed down</param>
+        /// <param name="pressUp">Whether the trigger just started being released</param>
+        private void SyncTriggerPressStates(int triggerIndex, bool pressed, bool pressDown, bool pressUp)
         {
-            return trigger.HasReloaded;
-        }
-
-        /// <summary>
-        ///     Sets the given weapon trigger loaded state so that it is ready to shoot if there is ammo left.
-        /// </summary>
-        /// <param name="trigger">Firearm trigger</param>
-        private static void Reload(UxrFirearmTrigger trigger)
-        {
-            trigger.HasReloaded = true;
-        }
-
-        /// <summary>
-        ///     Checks whether there is a magazine attached that fires shots using the given trigger. It may or may not have ammo.
-        /// </summary>
-        /// <param name="trigger">Firearm trigger</param>
-        /// <returns>Whether there is a magazine attached</returns>
-        private static bool HasMagAttached(UxrFirearmTrigger trigger)
-        {
-            return trigger.AmmunitionMagAnchor != null && trigger.AmmunitionMagAnchor.CurrentPlacedObject != null;
-        }
-
-        /// <summary>
-        ///     Gets the attached magazine maximum capacity.
-        /// </summary>
-        /// <param name="trigger">Firearm trigger</param>
-        /// <returns>Maximum capacity of ammo in the attached magazine. If there isn't any magazine attached it returns 0</returns>
-        private static int GetAmmoCapacity(UxrFirearmTrigger trigger)
-        {
-            if (trigger.AmmunitionMagAnchor != null && trigger.AmmunitionMagAnchor.CurrentPlacedObject != null)
+            if (_runtimeTriggers.TryGetValue(triggerIndex, out RuntimeTriggerInfo runtimeTrigger))
             {
-                UxrFirearmMag mag = trigger.AmmunitionMagAnchor.CurrentPlacedObject.GetCachedComponent<UxrFirearmMag>();
-
-                return mag != null ? mag.Capacity : 0;
-            }
-
-            return 0;
-        }
-
-        /// <summary>
-        ///     Gets the ammo left in the attached magazine.
-        /// </summary>
-        /// <param name="trigger">Firearm trigger</param>
-        /// <returns>Ammo left in the attached magazine. If there isn't any magazine attached it returns 0</returns>
-        private static int GetAmmoLeft(UxrFirearmTrigger trigger)
-        {
-            if (trigger.AmmunitionMagAnchor != null)
-            {
-                if (trigger.AmmunitionMagAnchor.CurrentPlacedObject != null)
+                if (runtimeTrigger.TriggerPressed != pressed || runtimeTrigger.TriggerPressStarted != pressDown || runtimeTrigger.TriggerPressEnded != pressUp)
                 {
-                    UxrFirearmMag mag = trigger.AmmunitionMagAnchor.CurrentPlacedObject.GetCachedComponent<UxrFirearmMag>();
+                    BeginSync();
 
-                    return mag != null ? mag.Rounds : 0;
-                }
-            }
-            else
-            {
-                return int.MaxValue;
-            }
+                    runtimeTrigger.TriggerPressed      = pressed;
+                    runtimeTrigger.TriggerPressStarted = pressDown;
+                    runtimeTrigger.TriggerPressEnded   = pressUp;
 
-            return 0;
-        }
-
-        /// <summary>
-        ///     Sets the ammo left in the attached magazine.
-        /// </summary>
-        /// <param name="trigger">Firearm trigger</param>
-        /// <param name="ammo">New ammo</param>
-        private static void SetAmmoLeft(UxrFirearmTrigger trigger, int ammo)
-        {
-            if (trigger.AmmunitionMagAnchor != null && trigger.AmmunitionMagAnchor.CurrentPlacedObject != null)
-            {
-                UxrFirearmMag mag = trigger.AmmunitionMagAnchor.CurrentPlacedObject.GetCachedComponent<UxrFirearmMag>();
-
-                if (mag != null)
-                {
-                    mag.Rounds = ammo;
+                    EndSyncMethod(SyncParams(triggerIndex, pressed, pressDown, pressUp));
                 }
             }
         }
 
         /// <summary>
-        ///     Sets the trigger pressed value.
+        ///     See <see cref="SyncAmmoLeft(int, int)" />.
         /// </summary>
-        /// <param name="trigger">Firearm trigger</param>
-        /// <param name="triggerValue">Pressed value between range [0.0, 1.0]</param>
-        private static void SetTriggerPressed(UxrFirearmTrigger trigger, float triggerValue)
+        /// <param name="grabbableTrigger">The grabbable object for the trigger</param>
+        private void SyncAmmoLeft(UxrGrabbableObject grabbableTrigger)
         {
-            trigger.TriggerTransform.localRotation = trigger.TriggerInitialLocalRotation * Quaternion.AngleAxis(trigger.TriggerRotationDegrees * triggerValue, trigger.TriggerRotationAxis);
+            UxrFirearmTrigger trigger = _triggers.FirstOrDefault(t => t.TriggerGrabbable == grabbableTrigger);
+
+            if (trigger != null && trigger.CycleType == UxrShotCycle.FullyAutomatic)
+            {
+                int index = _triggers.IndexOf(trigger);
+
+                if (index != -1)
+                {
+                    SyncAmmoLeft(index, GetAmmoLeft(index));
+                }
+            }
         }
 
         /// <summary>
-        ///     Tries to shoot a round using the given trigger.
+        ///     Sets the ammo left, to sync multiplayer after a fully automatic gun stopped firing.
         /// </summary>
-        /// <param name="trigger">Firearm trigger</param>
-        /// <returns>
-        ///     Whether a round was shot. If no round was shot it can mean that:
-        ///     <list type="bullet">
-        ///         <item>The trigger index references an entry that doesn't exist.</item>
-        ///         <item>The firearm isn't loaded.</item>
-        ///         <item>The firearm doesn't have any ammo left or there is no magazine attached.</item>
-        ///         <item>The shoot frequency doesn't allow to shoot again so quickly.</item>
-        ///     </list>
-        /// </returns>
-        private bool TryToShootRound(UxrFirearmTrigger trigger)
+        /// <param name="triggerIndex"> The trigger index</param>
+        /// <param name="ammo">The ammo left</param>
+        private void SyncAmmoLeft(int triggerIndex, int ammo)
         {
-            if (GetAmmoLeft(trigger) > 0 && trigger.LastShotTimer <= 0.0f)
-            {
-                SetAmmoLeft(trigger, GetAmmoLeft(trigger) - 1);
+            BeginSync();
 
-                trigger.LastShotTimer = trigger.MaxShotFrequency > 0 ? 1.0f / trigger.MaxShotFrequency : -1.0f;
+            SetAmmoLeft(triggerIndex, ammo);
 
-                // TODO: here we probably should add some randomization depending on recoil using the additional optional parameters
-                _weaponSource.Shoot(trigger.ProjectileShotIndex);
-
-                trigger.RecoilTimer = trigger.RecoilDurationSeconds;
-
-                // Audio
-
-                trigger.ShotAudio?.Play(_weaponSource.GetShotOrigin(trigger.ProjectileShotIndex));
-
-                // Raise events
-
-                int triggerIndex = _triggers.IndexOf(trigger);
-                OnProjectileShot(triggerIndex);
-                return true;
-            }
-
-            return false;
+            EndSyncMethod(SyncParams(triggerIndex, ammo));
         }
 
         #endregion
@@ -600,7 +682,7 @@ namespace UltimateXR.Mechanics.Weapons
                     // A normal setup will have just one grabbable point but for rifles and weapons with multiple parts we may have different grabbable objects.
                     // We will just get the root one so that we can subscribe to its ApplyConstraints event to apply recoil effects
 
-                    Transform          weaponRootGrabbableTransform = firstTriggerGrabbable.UsesGrabbableParentDependency ? firstTriggerGrabbable.GrabbableParentDependency : firstTriggerGrabbable.transform;
+                    Transform          weaponRootGrabbableTransform = firstTriggerGrabbable.UsesGrabbableParentDependency ? firstTriggerGrabbable.GrabbableParent.transform : firstTriggerGrabbable.transform;
                     UxrGrabbableObject rootGrabbable                = weaponRootGrabbableTransform.GetComponent<UxrGrabbableObject>();
 
                     return rootGrabbable;
@@ -610,7 +692,8 @@ namespace UltimateXR.Mechanics.Weapons
             }
         }
 
-        private UxrProjectileSource _weaponSource;
+        private UxrProjectileSource                 _weaponSource;
+        private Dictionary<int, RuntimeTriggerInfo> _runtimeTriggers = new Dictionary<int, RuntimeTriggerInfo>();
 
         #endregion
     }

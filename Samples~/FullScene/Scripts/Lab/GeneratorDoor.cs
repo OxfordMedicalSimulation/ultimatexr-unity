@@ -5,6 +5,7 @@
 // --------------------------------------------------------------------------------------------------------------------
 using UltimateXR.Core.Components;
 using UltimateXR.Manipulation;
+using UltimateXR.Manipulation.Helpers;
 using UnityEngine;
 
 namespace UltimateXR.Examples.FullScene.Lab
@@ -16,12 +17,11 @@ namespace UltimateXR.Examples.FullScene.Lab
     {
         #region Inspector Properties/Serialized Fields
 
-        [SerializeField] private BatteryAnchor      _batteryAnchor;
-        [SerializeField] private UxrGrabbableObject _grabbableLock;
-        [SerializeField] private Transform[]        _locks;
-        [SerializeField] private float              _lockHandleAngleClosed;
-        [SerializeField] private float              _lockHandleAngleOpen;
-        [SerializeField] private bool               _startLockOpen = true;
+        [SerializeField] private UxrAutoSlideInAnchor _batteryAnchor;
+        [SerializeField] private UxrGrabbableObject   _grabbableLock;
+        [SerializeField] private Transform[]          _locks;
+        [SerializeField] private float                _locksOpenRotation = 45.0f;
+        [SerializeField] private bool                 _startLockOpen     = true;
 
         #endregion
 
@@ -36,11 +36,11 @@ namespace UltimateXR.Examples.FullScene.Lab
             private set
             {
                 // Set rotation using the correct property to avoid interference between grabbable object constraint calculation and manually setting its transform.
-                _grabbableLock.SingleRotationAxisDegrees = value ? _lockHandleAngleOpen : _lockHandleAngleClosed;
+                _grabbableLock.SingleRotationAxisDegrees = value ? _grabbableLock.MaxSingleRotationDegrees : _grabbableLock.MinSingleRotationDegrees;
 
                 for (int i = 0; i < _locks.Length; ++i)
                 {
-                    _locks[i].transform.localRotation = _lockInitialRotation[i] * Quaternion.AngleAxis((value ? 1.0f : 0.0f) * (_lockHandleAngleOpen - _lockHandleAngleClosed), Vector3.right);
+                    _locks[i].transform.localRotation = _lockInitialRotation[i] * Quaternion.AngleAxis((value ? 1.0f : 0.0f) * _locksOpenRotation, Vector3.right);
                 }
             }
         }
@@ -69,8 +69,6 @@ namespace UltimateXR.Examples.FullScene.Lab
             {
                 _lockInitialRotation[i] = _locks[i].localRotation;
             }
-
-            IsBatteryInContact = _batteryAnchor.Anchor.CurrentPlacedObject != null;
         }
 
         /// <summary>
@@ -103,7 +101,9 @@ namespace UltimateXR.Examples.FullScene.Lab
         protected override void Start()
         {
             base.Start();
-            IsLockOpen = _startLockOpen;
+
+            IsBatteryInContact = _batteryAnchor.Anchor.CurrentPlacedObject != null;
+            IsLockOpen         = _startLockOpen;
         }
 
         /// <summary>
@@ -121,6 +121,8 @@ namespace UltimateXR.Examples.FullScene.Lab
             {
                 _batteryAnchor.enabled = true;
             }
+            
+            ApplyLockConstraints();
         }
 
         #endregion
@@ -134,26 +136,7 @@ namespace UltimateXR.Examples.FullScene.Lab
         /// <param name="e">Event parameters</param>
         private void Lock_ConstraintsApplied(object sender, UxrApplyConstraintsEventArgs e)
         {
-            float lockHandleOpenValue = LockHandleOpenValue;
-            float locksOpenValue      = 1.0f - (1.0f - lockHandleOpenValue) * (1.0f - lockHandleOpenValue);
-
-            // Update small locks based on the main lock open value
-
-            for (int i = 0; i < _locks.Length; ++i)
-            {
-                _locks[i].transform.localRotation = _lockInitialRotation[i] * Quaternion.AngleAxis(locksOpenValue * (_lockHandleAngleOpen - _lockHandleAngleClosed), Vector3.right);
-            }
-
-            // Main lock can be manipulated only while the battery is completely inside or there is no battery
-
-            if (_batteryAnchor.Anchor.CurrentPlacedObject != null && _batteryAnchor.Anchor.CurrentPlacedObject.transform.localPosition.z > 0.01f)
-            {
-                _grabbableLock.RotationConstraint = UxrRotationConstraintMode.Locked;
-            }
-            else
-            {
-                _grabbableLock.RotationConstraint = UxrRotationConstraintMode.RestrictLocalRotation;
-            }
+            ApplyLockConstraints();
         }
 
         /// <summary>
@@ -163,7 +146,7 @@ namespace UltimateXR.Examples.FullScene.Lab
         /// <param name="e">Event parameters</param>
         private void Battery_Placed(object sender, UxrManipulationEventArgs e)
         {
-            // In order to make the lights turn on only when the battery reached the bottom, we control this from the Battery component.
+            // To turn the lights on only when the battery reached the bottom, we control this from the Battery component.
         }
 
         /// <summary>
@@ -178,19 +161,43 @@ namespace UltimateXR.Examples.FullScene.Lab
 
         #endregion
 
+        #region Private Methods
+
+        /// <summary>
+        ///     Applies the lock constraints.
+        /// </summary>
+        private void ApplyLockConstraints()
+        {
+            float lockHandleOpenValue = LockHandleOpenValue;
+            float locksOpenValue      = 1.0f - (1.0f - lockHandleOpenValue) * (1.0f - lockHandleOpenValue);
+
+            // Update small locks based on the main lock open value
+
+            for (int i = 0; i < _locks.Length; ++i)
+            {
+                _locks[i].transform.localRotation = _lockInitialRotation[i] * Quaternion.AngleAxis(locksOpenValue * _locksOpenRotation, Vector3.right);
+            }
+
+            // Main lock can be manipulated only while the battery is completely inside or there is no battery
+
+            if (_batteryAnchor.Anchor.CurrentPlacedObject != null && _batteryAnchor.Anchor.CurrentPlacedObject.transform.localPosition.z > 0.01f)
+            {
+                _grabbableLock.IsLockedInPlace = true;
+            }
+            else
+            {
+                _grabbableLock.IsLockedInPlace = false;
+            }
+        }
+
+        #endregion
+
         #region Private Types & Data
 
         /// <summary>
         ///     Returns a value between 0.0 and 1.0 telling how open the lock is.
         /// </summary>
-        private float LockHandleOpenValue
-        {
-            get
-            {
-                float lockHandleOpenValue = Mathf.Clamp01((_grabbableLock.transform.localRotation.eulerAngles.z - _lockHandleAngleClosed) / (_lockHandleAngleOpen - _lockHandleAngleClosed));
-                return lockHandleOpenValue;
-            }
-        }
+        private float LockHandleOpenValue => _grabbableLock.SingleRotationAxisDegrees / (_grabbableLock.MaxSingleRotationDegrees - _grabbableLock.MinSingleRotationDegrees);
 
         private bool         _isBatteryInContact;
         private Quaternion[] _lockInitialRotation;

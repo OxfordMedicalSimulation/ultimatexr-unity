@@ -5,6 +5,7 @@
 // --------------------------------------------------------------------------------------------------------------------
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using UltimateXR.Core.Components.Composite;
 using UnityEngine;
 
@@ -69,19 +70,11 @@ namespace UltimateXR.Core.Components
         /// <summary>
         ///     Gets all components of this specific type that are enabled, in all open scenes.
         /// </summary>
-        public new static IEnumerable<T> EnabledComponents
-        {
-            get
-            {
-                foreach (T component in s_typeComponents)
-                {
-                    if (component.enabled && component.gameObject.activeInHierarchy)
-                    {
-                        yield return component;
-                    }
-                }
-            }
-        }
+        /// <remarks>
+        ///     This property requires memory allocation. For no allocation, use <see cref="AllComponents"/>
+        ///     in a for and filter using <see cref="Behaviour.isActiveAndEnabled"/>.
+        /// </remarks>
+        public new static IEnumerable<T> EnabledComponents => s_typeComponents.Where(c => c != null && c.isActiveAndEnabled);
 
         #endregion
 

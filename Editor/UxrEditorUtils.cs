@@ -11,6 +11,7 @@ using UltimateXR.Avatar.Controllers;
 using UltimateXR.Core;
 using UltimateXR.Devices;
 using UltimateXR.Manipulation;
+using UnityEditor;
 using Object = UnityEngine.Object;
 
 namespace UltimateXR.Editor
@@ -20,13 +21,15 @@ namespace UltimateXR.Editor
     /// </summary>
     public static partial class UxrEditorUtils
     {
-        #region Public Types & Data
-
-        public const int ButtonWidth = 200;
-
-        #endregion
-
         #region Public Methods
+        
+        /// <summary>
+        ///     Shows an error message window telling the user the selected folder must be in the current project.
+        /// </summary>
+        public static void ShowFolderNotInProjectError()
+        {
+            EditorUtility.DisplayDialog(UxrConstants.Editor.Error, "Folder must be in the current project.", UxrConstants.Editor.Ok);
+        }
 
         /// <summary>
         ///     Checks for the presence of <see cref="UxrManager" /> in scene.
@@ -34,7 +37,7 @@ namespace UltimateXR.Editor
         /// <returns>Boolean telling the result</returns>
         public static bool CheckManagerInScene()
         {
-            return Object.FindObjectOfType<UxrManager>() != null;
+            return Object.FindAnyObjectByType<UxrManager>() != null;
         }
 
         /// <summary>
@@ -43,7 +46,7 @@ namespace UltimateXR.Editor
         /// <returns>Boolean telling the result</returns>
         public static bool CheckAvatarInScene()
         {
-            return Object.FindObjectOfType<UxrAvatar>() != null;
+            return Object.FindAnyObjectByType<UxrAvatar>();
         }
 
         /// <summary>
@@ -53,14 +56,14 @@ namespace UltimateXR.Editor
         /// <returns>Boolean telling the result</returns>
         public static bool CheckAvatarInSceneWithGrabbing()
         {
-            UxrAvatar avatar = Object.FindObjectOfType<UxrAvatar>();
+            UxrAvatar avatar = Object.FindAnyObjectByType<UxrAvatar>();
 
             if (avatar == null)
             {
                 return false;
             }
 
-            return avatar.GetComponentInChildren<UxrGrabber>() != null;
+            return avatar.GetComponentInChildren<UxrGrabber>();
         }
 
         /// <summary>
@@ -70,7 +73,7 @@ namespace UltimateXR.Editor
         /// <returns>Boolean telling the result</returns>
         public static bool CheckAvatarInSceneWithGrabController()
         {
-            UxrAvatar avatar = Object.FindObjectOfType<UxrAvatar>();
+            UxrAvatar avatar = Object.FindAnyObjectByType<UxrAvatar>();
 
             if (avatar == null)
             {
@@ -102,9 +105,9 @@ namespace UltimateXR.Editor
         public static List<string> GetControllerButtonNames()
         {
             List<string> buttonNames = new List<string>(Enum.GetNames(typeof(UxrInputButtons)));
-            buttonNames.Remove(UxrInputButtons.None.ToString());
-            buttonNames.Remove(UxrInputButtons.Any.ToString());
-            buttonNames.Remove(UxrInputButtons.Everything.ToString());
+            buttonNames.Remove(nameof(UxrInputButtons.None));
+            buttonNames.Remove(nameof(UxrInputButtons.Any));
+            buttonNames.Remove(nameof(UxrInputButtons.Everything));
 
             return buttonNames;
         }
@@ -115,10 +118,7 @@ namespace UltimateXR.Editor
         /// <returns>List of available buttons</returns>
         public static List<string> GetAvatarRenderModeNames()
         {
-            List<string> renderModeNames = new List<string>(Enum.GetNames(typeof(UxrAvatarRenderModes)));
-            renderModeNames.Remove(UxrAvatarRenderModes.None.ToString());
-            renderModeNames.Remove(UxrAvatarRenderModes.AllControllers.ToString());
-            renderModeNames.Remove(UxrAvatarRenderModes.AllControllersAndAvatar.ToString());
+            List<string> renderModeNames = new List<string>(Enum.GetNames(typeof(UxrAvatarRenderMode)));
             return renderModeNames;
         }
 

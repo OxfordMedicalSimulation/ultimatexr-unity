@@ -20,12 +20,13 @@ namespace UltimateXR.UI.UnityInputModule
     {
         #region Inspector Properties/Serialized Fields
 
-        [SerializeField] protected UxrInteractionType _interactionType;
-        [SerializeField] protected float              _fingerTipMinHoverDistance = UxrFingerTipRaycaster.FingerTipMinHoverDistanceDefault;
-        [SerializeField] protected bool               _autoEnableLaserPointer;
-        [SerializeField] protected float              _autoEnableDistance = 5.0f;
-        [SerializeField] protected bool               _allowLeftHand      = true;
-        [SerializeField] protected bool               _allowRightHand     = true;
+        [SerializeField] protected UxrInteractionTypes _interactionTypes          = UxrInteractionTypes.FingerTips | UxrInteractionTypes.LaserPointers;
+        [SerializeField] protected float               _fingerTipMinHoverDistance = UxrFingerTipRaycaster.FingerTipMinHoverDistanceDefault;
+        [SerializeField] protected bool                _autoEnableLaserPointer;
+        [SerializeField] protected float               _autoEnableDistance = 5.0f;
+        [SerializeField] protected bool                _allowLeftHand      = true;
+        [SerializeField] protected bool                _allowRightHand     = true;
+        [SerializeField] protected bool                _ignoreCameraAutoAssign;
 
         #endregion
 
@@ -35,6 +36,18 @@ namespace UltimateXR.UI.UnityInputModule
         ///     Gets the Unity <see cref="Canvas" /> component.
         /// </summary>
         public Canvas UnityCanvas => GetCachedComponent<Canvas>();
+
+        /// <summary>
+        ///     Gets or sets whether to ignore the <see cref="UxrPointerInputModule.AutoAssignEventCamera" /> parameter for this
+        ///     Canvas.
+        ///     The worldCamera of the Canvas component is assigned during Start(), which means this property needs to be changed
+        ///     before its Start() call to work.
+        /// </summary>
+        public bool IgnoreCameraAutoAssign
+        {
+            get => _ignoreCameraAutoAssign;
+            set => _ignoreCameraAutoAssign = value;
+        }
 
         /// <summary>
         ///     Gets or sets whether the <see cref="UxrLaserPointer" /> components will automatically show their laser while
@@ -57,14 +70,14 @@ namespace UltimateXR.UI.UnityInputModule
         }
 
         /// <summary>
-        ///     Gets or sets the type of interaction with the UI components in the canvas.
+        ///     Gets or sets the type of interactions with the UI components in the canvas.
         /// </summary>
-        public UxrInteractionType CanvasInteractionType
+        public UxrInteractionTypes CanvasInteractionTypes
         {
-            get => _interactionType;
+            get => _interactionTypes;
             set
             {
-                _interactionType = value;
+                _interactionTypes = value;
 
                 if (_oldRaycaster != null)
                 {
@@ -104,7 +117,7 @@ namespace UltimateXR.UI.UnityInputModule
         /// <param name="inputModule">The input module</param>
         public void SetupCanvas(UxrPointerInputModule inputModule)
         {
-            CanvasInteractionType = inputModule.InteractionTypeOnAutoEnable;
+            CanvasInteractionTypes = inputModule.InteractionTypesOnAutoEnable;
 
             if (_newRaycasterFingerTips != null)
             {
@@ -123,7 +136,7 @@ namespace UltimateXR.UI.UnityInputModule
         {
             base.Start();
 
-            if (UxrPointerInputModule.Instance && UxrPointerInputModule.Instance.AutoAssignEventCamera && UnityCanvas && UxrAvatar.LocalAvatar)
+            if (!_ignoreCameraAutoAssign && UxrPointerInputModule.Instance && UxrPointerInputModule.Instance.AutoAssignEventCamera && UnityCanvas && UxrAvatar.LocalAvatar)
             {
                 UnityCanvas.worldCamera = UxrAvatar.LocalAvatar.CameraComponent;
             }
@@ -154,12 +167,13 @@ namespace UltimateXR.UI.UnityInputModule
                 _oldRaycaster = UnityCanvas.gameObject.GetComponent<GraphicRaycaster>();
             }
 
-            if (_interactionType == UxrInteractionType.FingerTips)
+            if (_interactionTypes.HasFlag(UxrInteractionTypes.FingerTips))
             {
                 _newRaycasterFingerTips                           = GetOrAddRaycaster<UxrFingerTipRaycaster>(_oldRaycaster);
                 _newRaycasterFingerTips.FingerTipMinHoverDistance = _fingerTipMinHoverDistance;
             }
-            else if (_interactionType == UxrInteractionType.LaserPointers)
+
+            if (_interactionTypes.HasFlag(UxrInteractionTypes.LaserPointers))
             {
                 _newRaycasterLaserPointer = GetOrAddRaycaster<UxrLaserPointerRaycaster>(_oldRaycaster);
             }
@@ -175,7 +189,7 @@ namespace UltimateXR.UI.UnityInputModule
         {
             bool copyParameters = UnityCanvas.GetComponent<T>() == null;
             T    rayCaster      = UnityCanvas.GetOrAddComponent<T>();
-            
+
             rayCaster.enabled = true;
 
             if (oldRaycaster && rayCaster)
@@ -186,8 +200,11 @@ namespace UltimateXR.UI.UnityInputModule
                     rayCaster.blockingObjects        = oldRaycaster.blockingObjects;
                     rayCaster.blockingMask           = oldRaycaster.blockingMask;
                 }
-                
-                oldRaycaster.enabled = false;
+
+                if (UxrPointerInputModule.Instance && UxrPointerInputModule.Instance.DisableOtherInputModules)
+                {
+                    oldRaycaster.enabled = false;
+                }
             }
 
             return rayCaster;
@@ -208,7 +225,7 @@ namespace UltimateXR.UI.UnityInputModule
                 Destroy(_newRaycasterLaserPointer);
             }
 
-            if (_oldRaycaster && _oldRaycaster.enabled == false)
+            if (_oldRaycaster && !_oldRaycaster.enabled && UxrPointerInputModule.Instance && UxrPointerInputModule.Instance.DisableOtherInputModules)
             {
                 _oldRaycaster.enabled = true;
             }

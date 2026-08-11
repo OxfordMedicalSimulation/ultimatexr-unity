@@ -4,7 +4,10 @@
 // </copyright>
 // --------------------------------------------------------------------------------------------------------------------
 using System;
+using UltimateXR.Core;
+using UltimateXR.Core.Settings;
 using UltimateXR.Extensions.System;
+using UltimateXR.UI.UnityInputModule.Utils;
 using UnityEngine;
 
 namespace UltimateXR.Animation.Interpolation
@@ -23,10 +26,12 @@ namespace UltimateXR.Animation.Interpolation
         /// <param name="oldValue">Old value</param>
         /// <param name="newValue">New value</param>
         /// <param name="smooth">Smooth value [0.0, 1.0] where 0.0 is no smoothing and 1.0 is maximum smoothing</param>
+        /// <param name="useUnscaledTime">If true, uses unscaled time, which is not affected by <see cref="Time.timeScale"/>.
+        /// This is useful for smoothing during pauses or slow-motion.</param>
         /// <returns>Smoothed value</returns>
-        public static float SmoothDamp(float oldValue, float newValue, float smooth)
+        public static float SmoothDamp(float oldValue, float newValue, float smooth, bool useUnscaledTime = false)
         {
-            return Mathf.Lerp(oldValue, newValue, GetSmoothInterpolationValue(smooth, Time.deltaTime));
+            return Mathf.Lerp(oldValue, newValue, GetSmoothInterpolationValue(smooth, useUnscaledTime ? Time.unscaledDeltaTime : Time.deltaTime));
         }
         
         /// <summary>
@@ -47,10 +52,12 @@ namespace UltimateXR.Animation.Interpolation
         /// <param name="oldPos">Old position</param>
         /// <param name="newPos">New position</param>
         /// <param name="smooth">Smooth value [0.0, 1.0] where 0.0 is no smoothing and 1.0 is maximum smoothing</param>
+        /// <param name="useUnscaledTime">If true, uses unscaled time, which is not affected by <see cref="Time.timeScale"/>.
+        /// This is useful for smoothing during pauses or slow-motion.</param>
         /// <returns>Smoothed position value</returns>
-        public static Vector3 SmoothDampPosition(Vector3 oldPos, Vector3 newPos, float smooth)
+        public static Vector3 SmoothDampPosition(Vector3 oldPos, Vector3 newPos, float smooth, bool useUnscaledTime = false)
         {
-            return Vector3.Lerp(oldPos, newPos, GetSmoothInterpolationValue(smooth, Time.deltaTime));
+            return Vector3.Lerp(oldPos, newPos, GetSmoothInterpolationValue(smooth, useUnscaledTime ? Time.unscaledDeltaTime : Time.deltaTime));
         }
         
         /// <summary>
@@ -72,10 +79,12 @@ namespace UltimateXR.Animation.Interpolation
         /// <param name="oldRot">Old rotation</param>
         /// <param name="newRot">New rotation</param>
         /// <param name="smooth">Smooth value [0.0, 1.0] where 0.0 is no smoothing and 1.0 is maximum smoothing</param>
+        /// <param name="useUnscaledTime">If true, uses unscaled time, which is not affected by <see cref="Time.timeScale"/>.
+        /// This is useful for smoothing during pauses or slow-motion.</param>
         /// <returns>Smoothed rotation value</returns>
-        public static Quaternion SmoothDampRotation(Quaternion oldRot, Quaternion newRot, float smooth)
+        public static Quaternion SmoothDampRotation(Quaternion oldRot, Quaternion newRot, float smooth, bool useUnscaledTime = false)
         {
-            return Quaternion.Slerp(oldRot, newRot, GetSmoothInterpolationValue(smooth, Time.deltaTime));
+            return Quaternion.Slerp(oldRot, newRot, GetSmoothInterpolationValue(smooth, useUnscaledTime ? Time.unscaledDeltaTime : Time.deltaTime));
         }
         
         /// <summary>
@@ -256,14 +265,14 @@ namespace UltimateXR.Animation.Interpolation
 
             if (!(loopMode != UxrLoopMode.None && loopedDuration < 0.0f))
             {
-                Mathf.Min(time, delay + (loopMode == UxrLoopMode.None ? duration : loopedDuration));
+                time = Mathf.Min(time, delay + (loopMode == UxrLoopMode.None ? duration : loopedDuration));
             }
 
             float t = duration == 0.0f ? 0.0f : (time - delay) / duration;
 
             if (loopMode == UxrLoopMode.Loop)
             {
-                t = t - (int)t;
+                t -= (int)t;
             }
             else if (loopMode == UxrLoopMode.PingPong)
             {
@@ -397,7 +406,7 @@ namespace UltimateXR.Animation.Interpolation
         ///     <para>
         ///         Start/end pairs that will be interpolated and fed into <see cref="string.Format(string,object[])" />.
         ///         These should be sequential pairs of values of the same type that represent the start value and the end value.
-        ///         For instance format could be "{0}:{1}" and args could be startArg0, endArg0, startArg1, endArg1.
+        ///         For instance, the format could be "{0}:{1}" and args could be startArg0, endArg0, startArg1, endArg1.
         ///         This will print 2 interpolated values (Arg0 and Arg1) whose start and end values are defined by the other 4
         ///         parameters.
         ///     </para>
@@ -426,7 +435,11 @@ namespace UltimateXR.Animation.Interpolation
 #if UNITY_EDITOR
             if (!(formatStringArgs.Length > 0 && formatStringArgs.Length % 2 == 0))
             {
-                Debug.LogError("The text has no arguments or the number of arguments is not even");
+                if (UxrGlobalSettings.Instance.LogLevelAnimation >= UxrLogLevel.Errors)
+                {
+                    Debug.LogError($"{UxrConstants.AnimationModule} {nameof(InterpolateText)}: The text has no arguments or the number of arguments is not even");
+
+                }
                 return string.Empty;
             }
 #endif
@@ -438,20 +451,32 @@ namespace UltimateXR.Animation.Interpolation
             {
                 if (formatStringArgs[i] == null)
                 {
-                    Debug.LogError("Argument " + i + " is null");
+                    if (UxrGlobalSettings.Instance.LogLevelAnimation >= UxrLogLevel.Errors)
+                    {
+                        Debug.LogError($"{UxrConstants.AnimationModule} {nameof(InterpolateText)}: Argument " + i + " is null");
+                    }
+                    
                     return formatStringArgs[i + numArgs] != null ? formatStringArgs[i + numArgs].ToString() : string.Empty;
                 }
 
                 if (formatStringArgs[i + numArgs] == null)
                 {
-                    Debug.LogError("Argument " + (i + numArgs) + " is null");
+                    if (UxrGlobalSettings.Instance.LogLevelAnimation >= UxrLogLevel.Errors)
+                    {
+                        Debug.LogError($"{UxrConstants.AnimationModule} {nameof(InterpolateText)}: Argument " + (i + numArgs) + " is null");
+                    }
+                    
                     return formatStringArgs[i] != null ? formatStringArgs[i].ToString() : string.Empty;
                 }
 
 #if UNITY_EDITOR
                 if (!(formatStringArgs[i].GetType() == formatStringArgs[i + numArgs].GetType()))
                 {
-                    Debug.LogError("Type of argument " + i + " is not the same as argument " + (i + numArgs));
+                    if (UxrGlobalSettings.Instance.LogLevelAnimation >= UxrLogLevel.Errors)
+                    {
+                        Debug.LogError($"{UxrConstants.AnimationModule} {nameof(InterpolateText)}: Type of argument " + i + " is not the same as argument " + (i + numArgs));
+                    }
+                    
                     return string.Empty;
                 }
 #endif
@@ -488,7 +513,17 @@ namespace UltimateXR.Animation.Interpolation
                         if (isForUnityTextUI)
                         {
                             // Add the remaining characters as "invisible" to avoid word wrapping effects during interpolation.
-                            finalArgs[i] += @"<color=#00000000>" + (endChars > startChars ? b.Substring(numChars, endChars - numChars) : string.Empty) + @"</color>";
+
+                            string remaining = @"<color=#00000000>" + (endChars > startChars ? b.Substring(numChars, endChars - numChars) : string.Empty) + @"</color>"; 
+                            
+                            if (!UxrRightToLeftSupport.UseRightToLeft)
+                            {
+                                finalArgs[i] += remaining;
+                            }
+                            else
+                            {
+                                finalArgs[i] = remaining + finalArgs[i];
+                            }
                         }
                     }
                     else
@@ -503,7 +538,7 @@ namespace UltimateXR.Animation.Interpolation
 
         #endregion
 
-        #region Private Methods
+        #region Internal Methods
 
         /// <summary>
         ///     Gets a framerate-independent smoothed interpolation value.
@@ -511,10 +546,21 @@ namespace UltimateXR.Animation.Interpolation
         /// <param name="smooth">Smooth value [0.0, 1.0] with 0 meaning no smoothing and 1 maximum smoothing</param>
         /// <param name="deltaTime">Elapsed time in seconds</param>
         /// <returns>Interpolation value [0.0, 1.0]</returns>
-        private static float GetSmoothInterpolationValue(float smooth, float deltaTime)
+        internal static float GetSmoothInterpolationValue(float smooth, float deltaTime)
         {
-            return smooth > 0.0f ? (1.0f - Mathf.Clamp01(smooth)) * deltaTime * MaxSmoothSpeed : 1.0f;
+            if (smooth <= 0.0f)
+            {
+                return 1.0f;
+            }
+
+            // Framerate-independent exponential decay: 1 - e^(-lambda * dt)
+            float lambda = (1.0f - Mathf.Clamp01(smooth)) * MaxSmoothSpeed;
+            return 1.0f - Mathf.Exp(-lambda * deltaTime);
         }
+        
+        #endregion
+        
+        #region Private Methods
 
         /// <summary>
         ///     Evaluates a curve using interpolation. This is the core math code that does the actual interpolation.
@@ -685,13 +731,14 @@ namespace UltimateXR.Animation.Interpolation
                 case UxrEasing.EaseInBack:
                 {
                     float s = 1.70158f;
-                    return change * (t * t * (s + 1.0f) * t - s) + start;
+                    return change * (t * t * ((s + 1.0f) * t - s)) + start;
                 }
 
                 case UxrEasing.EaseOutBack:
                 {
                     float s = 1.70158f;
-                    return change * ((t - 1.0f) * t * ((s + 1.0f) * t + s) + 1.0f) + start;
+                    t = t - 1.0f;
+                    return change * (t * t * ((s + 1.0f) * t + s) + 1.0f) + start;
                 }
 
                 case UxrEasing.EaseInOutBack:
@@ -778,7 +825,10 @@ namespace UltimateXR.Animation.Interpolation
 
                 default:
 #if UNITY_EDITOR
-                    Debug.LogError($"{nameof(UxrInterpolator)} Unknown easing mode");
+                    if (UxrGlobalSettings.Instance.LogLevelAnimation >= UxrLogLevel.Errors)
+                    {
+                        Debug.LogError($"{UxrConstants.AnimationModule}: {nameof(UxrInterpolator)} Unknown easing mode");
+                    }
 #endif
                     return Vector4.zero;
             }

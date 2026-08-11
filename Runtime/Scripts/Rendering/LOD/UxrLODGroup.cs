@@ -7,6 +7,7 @@ using System.Collections;
 using UltimateXR.Avatar;
 using UltimateXR.Core;
 using UltimateXR.Core.Components;
+using UltimateXR.Core.Settings;
 using UltimateXR.Extensions.Unity.Render;
 using UltimateXR.Locomotion;
 using UnityEngine;
@@ -14,15 +15,22 @@ using UnityEngine;
 namespace UltimateXR.Rendering.LOD
 {
     /// <summary>
-    ///     <para>
-    ///         Component that, added to a GameObject with a Unity LODGroup component, will take over the LOD switching.
-    ///     </para>
-    ///     When using a locomotion based on teleportation, it will only switch LOD levels when the teleportation happens to
-    ///     avoid popping due to head movement. When using a smooth locomotion system it will use regular LOD switching.
+    ///     Fixes LOD levels in VR, which by default do not work correctly. See
+    ///     https://forum.unity.com/threads/lodgroup-in-vr.455394/.<br />
+    ///     In addition, when using non-smooth locomotion, it can switch LOD levels only when the avatar moved.
+    ///     This avoids LOD switching caused by head movement, where the camera is. When using a smooth locomotion
+    ///     system it will use regular LOD switching.<br />
+    ///     Using LOD switching on teleports only can be disabled using the "Only Fix LOD Bias" parameter.
     /// </summary>
     [RequireComponent(typeof(LODGroup))]
     public class UxrLODGroup : UxrComponent<UxrLODGroup>
     {
+        #region Inspector Properties/Serialized Fields
+
+        [SerializeField] private bool _onlyFixLodBias;
+
+        #endregion
+
         #region Public Types & Data
 
         /// <summary>
@@ -41,7 +49,10 @@ namespace UltimateXR.Rendering.LOD
         {
             base.Awake();
 
-            UxrTeleportLocomotion.GlobalEnabled += UxrLocomotion_Enabled;
+            if (!_onlyFixLodBias)
+            {
+                UxrAvatar.LocalAvatarChanged += UxrAvatar_LocalAvatarChanged;
+            }
         }
 
         /// <summary>
@@ -51,18 +62,26 @@ namespace UltimateXR.Rendering.LOD
         {
             base.OnDestroy();
 
-            UxrTeleportLocomotion.GlobalEnabled -= UxrLocomotion_Enabled;
+            if (!_onlyFixLodBias)
+            {
+                UxrAvatar.LocalAvatarChanged -= UxrAvatar_LocalAvatarChanged;
+            }
         }
 
         /// <summary>
         ///     Subscribes to the event called whenever an avatar was moved.
-        ///     Also starts the LOD Bias fix coroutine.
+        ///     Also starts the LOD Bias fix coroutine and sets up the correct LOD level if there is a local avatar.
         /// </summary>
         protected override void OnEnable()
         {
             base.OnEnable();
 
-            UxrManager.AvatarMoved += UxrManager_AvatarMoved;
+            if (!_onlyFixLodBias)
+            {
+                UxrAvatar.GlobalAvatarMoved += UxrAvatar_GlobalAvatarMoved;
+                UpdateMode(UxrAvatar.LocalAvatar);
+            }
+
             StartCoroutine(FixLodBiasCoroutine());
         }
 
@@ -73,8 +92,15 @@ namespace UltimateXR.Rendering.LOD
         {
             base.OnDisable();
 
-            UxrManager.AvatarMoved -= UxrManager_AvatarMoved;
-            UnityLODGroup.enabled  =  true;
+            if (!_onlyFixLodBias)
+            {
+                UxrAvatar.GlobalAvatarMoved -= UxrAvatar_GlobalAvatarMoved;
+
+                if (UnityLODGroup.enabled && UnityLODGroup.gameObject.activeInHierarchy)
+                {
+                    UnityLODGroup.ForceLOD(-1);
+                }
+            }
         }
 
         #endregion
@@ -83,7 +109,7 @@ namespace UltimateXR.Rendering.LOD
 
         /// <summary>
         ///     Fixes the LOD bias so that the LOD switching in VR behaves like in the editor.
-        ///     From: From: https://forum.unity.com/threads/lodgroup-in-vr.455394/
+        ///     From: https://forum.unity.com/threads/lodgroup-in-vr.455394/
         /// </summary>
         /// <returns>Coroutine enumerator</returns>
         private IEnumerator FixLodBiasCoroutine()
@@ -96,16 +122,28 @@ namespace UltimateXR.Rendering.LOD
 
             while (UxrAvatar.LocalAvatarCamera == null)
             {
+                if (UxrAvatar.LocalAvatar != null && UxrAvatar.LocalStandardAvatarController == null)
+                {
+                    // Replay or other.
+                    yield break;
+                }
+
                 yield return null;
             }
 
             // Fix?
 
-            if (!s_lodGroupChanged)
+            if (!s_lodGroupFixed)
             {
+                float oldLodBias          = QualitySettings.lodBias; 
                 float editorCameraRadians = Mathf.PI / 3.0f;
-                QualitySettings.lodBias *= Mathf.Tan(UxrAvatar.LocalAvatarCamera.fieldOfView * Mathf.Deg2Rad / 2) / Mathf.Tan(editorCameraRadians / 2);
-                s_lodGroupChanged       =  true;
+                QualitySettings.lodBias  *= Mathf.Tan(UxrAvatar.LocalAvatarCamera.fieldOfView * Mathf.Deg2Rad / 2) / Mathf.Tan(editorCameraRadians / 2);
+                s_lodGroupFixed           = true;
+
+                if (UxrGlobalSettings.Instance.LogLevelRendering >= UxrLogLevel.Relevant)
+                {
+                    Debug.Log($"{UxrConstants.RenderingModule}: Fixing LOD Bias for VR cameras. Old value = {oldLodBias}, new value = {QualitySettings.lodBias}.");
+                }
             }
         }
 
@@ -114,23 +152,14 @@ namespace UltimateXR.Rendering.LOD
         #region Event Handling Methods
 
         /// <summary>
-        ///     Called whenever a <see cref="UxrLocomotion" /> component was enabled. If it is from the local avatar it will
-        ///     determine, depending on <see cref="UxrLocomotion.IsSmoothLocomotion" />, whether to use LOD switching each frame or
-        ///     only when the avatar position changed.
+        ///     Called whenever the local avatar changed. We use it to store whether the current local avatar
+        ///     uses smooth locomotion.
         /// </summary>
-        /// <param name="locomotion">Locomotion component that was enabled</param>
-        private void UxrLocomotion_Enabled(UxrLocomotion locomotion)
+        /// <param name="sender">Event sender</param>
+        /// <param name="e">Event parameters</param>
+        private void UxrAvatar_LocalAvatarChanged(object sender, UxrAvatarEventArgs e)
         {
-            if (locomotion.Avatar.AvatarMode == UxrAvatarMode.Local)
-            {
-                _isSmoothLocomotionEnabled = locomotion.IsSmoothLocomotion;
-                UnityLODGroup.enabled      = locomotion.IsSmoothLocomotion;
-
-                if (!locomotion.IsSmoothLocomotion)
-                {
-                    UnityLODGroup.EnableLevelRenderers(UnityLODGroup.GetVisibleLevel(locomotion.Avatar.CameraComponent));
-                }
-            }
+            UpdateMode(e.Avatar);
         }
 
         /// <summary>
@@ -138,11 +167,54 @@ namespace UltimateXR.Rendering.LOD
         /// </summary>
         /// <param name="sender">Event sender</param>
         /// <param name="e">Event parameters</param>
-        private void UxrManager_AvatarMoved(object sender, UxrAvatarMoveEventArgs e)
+        private void UxrAvatar_GlobalAvatarMoved(object sender, UxrAvatarMoveEventArgs e)
         {
-            if (e.Avatar.AvatarMode == UxrAvatarMode.Local && !_isSmoothLocomotionEnabled)
+            if (e.Avatar == UxrAvatar.LocalAvatar && !_isSmoothLocomotionEnabled)
             {
-                UnityLODGroup.EnableLevelRenderers(UnityLODGroup.GetVisibleLevel(e.Avatar.CameraComponent));
+                EnableLevelRenderers(e.Avatar.CameraComponent);
+            }
+        }
+
+        #endregion
+
+        #region Private Methods
+
+        /// <summary>
+        ///     Manually enables the LOD levels for a given camera.
+        /// </summary>
+        /// <param name="cam"></param>
+        private void EnableLevelRenderers(Camera cam)
+        {
+            if (UnityLODGroup.enabled && UnityLODGroup.gameObject.activeInHierarchy)
+            {
+                UnityLODGroup.ForceLOD(UnityLODGroup.GetVisibleLevel(cam));
+            }
+        }
+
+        /// <summary>
+        ///     Updates the continuous/discrete operation mode of the component.
+        /// </summary>
+        /// <param name="avatar">Avatar to update the current mode for</param>
+        private void UpdateMode(UxrAvatar avatar)
+        {
+            _isSmoothLocomotionEnabled = avatar != null && avatar.AvatarController != null && avatar.AvatarController.UsesSmoothLocomotion;
+
+            bool autoLod = _isSmoothLocomotionEnabled || avatar == null || avatar.CameraComponent == null;
+
+            if (!autoLod)
+            {
+                if (avatar != null && avatar.CameraComponent != null)
+                {
+                    EnableLevelRenderers(avatar.CameraComponent);
+                }
+            }
+            else
+            {
+                if (UnityLODGroup.enabled && UnityLODGroup.gameObject.activeInHierarchy)
+                {
+                    UnityLODGroup.EnableAllLevelRenderers();
+                    UnityLODGroup.ForceLOD(-1);
+                }
             }
         }
 
@@ -150,7 +222,7 @@ namespace UltimateXR.Rendering.LOD
 
         #region Private Types & Data
 
-        private static bool s_lodGroupChanged;
+        private static bool s_lodGroupFixed;
         private        bool _isSmoothLocomotionEnabled = true;
 
         #endregion

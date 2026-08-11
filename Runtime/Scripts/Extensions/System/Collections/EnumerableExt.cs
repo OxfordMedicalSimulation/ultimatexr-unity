@@ -4,9 +4,12 @@
 // </copyright>
 // --------------------------------------------------------------------------------------------------------------------
 using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
+using UltimateXR.Core;
+using UltimateXR.Core.Settings;
 using UnityEngine;
 using Random = UnityEngine.Random;
 
@@ -18,6 +21,36 @@ namespace UltimateXR.Extensions.System.Collections
     public static class EnumerableExt
     {
         #region Public Methods
+
+        /// <summary>
+        ///     Compares two IEnumerable for equality, considering the order of elements.
+        ///     For dictionaries, compares key-value pairs regardless of their order.
+        /// </summary>
+        /// <param name="enumerableA">The first collection to compare</param>
+        /// <param name="enumerableB">The second collection to compare</param>
+        /// <returns>True if the collections are equal; otherwise, false</returns>
+        public static bool ContentEqual(IEnumerable enumerableA, IEnumerable enumerableB)
+        {
+            return ContentEqual(enumerableA, enumerableB, (a, b) => a.ValuesEqual(b));
+        }
+
+        /// <summary>
+        ///     Compares two IEnumerable for equality, considering the order of elements.
+        ///     For dictionaries, compares key-value pairs regardless of their order.
+        ///     Values are compared using a floating point precision threshold used by
+        ///     <see cref="ObjectExt.ValuesEqual(object,object,float)" />.
+        /// </summary>
+        /// <param name="enumerableA">The first collection to compare</param>
+        /// <param name="enumerableB">The second collection to compare</param>
+        /// <param name="precisionThreshold">
+        ///     The precision threshold for float comparisons in types supported by
+        ///     <see cref="ObjectExt.ValuesEqual(object,object,float)" />.
+        /// </param>
+        /// <returns>True if the collections are equal; otherwise, false</returns>
+        public static bool ContentEqual(IEnumerable enumerableA, IEnumerable enumerableB, float precisionThreshold)
+        {
+            return ContentEqual(enumerableA, enumerableB, (a, b) => a.ValuesEqual(b, precisionThreshold));
+        }
 
         /// <summary>
         ///     Returns a random element from the collection.
@@ -94,8 +127,15 @@ namespace UltimateXR.Extensions.System.Collections
         {
             void OnFaulted(Task runTask, int itemIndex)
             {
-                Debug.LogWarning($"ForEachThreaded::Item[{itemIndex}] FAULTED (see reason below):");
-                Debug.LogException(runTask.Exception);
+                if (UxrGlobalSettings.Instance.LogLevelCore >= UxrLogLevel.Warnings)
+                {
+                    Debug.LogWarning($"{UxrConstants.CoreModule} ForEachThreaded::Item[{itemIndex}] faulted (see reason below):");
+                }
+
+                if (UxrGlobalSettings.Instance.LogLevelCore >= UxrLogLevel.Errors)
+                {
+                    Debug.LogException(runTask.Exception);
+                }
             }
 
             return Task.WhenAll(list.Select((item, index) => Task.Run(() => action(item)).ContinueWith(runTask => OnFaulted(runTask, index), TaskContinuationOptions.OnlyOnFaulted)));
@@ -107,13 +147,22 @@ namespace UltimateXR.Extensions.System.Collections
         /// <param name="list">Elements to apply the function on</param>
         /// <param name="function">Function to apply</param>
         /// <typeparam name="TIn">Element type</typeparam>
+        /// <typeparam name="TOut">Function return type</typeparam>
         /// <returns>Task wrapping the Task.WhenAll applying the function on all elements in a collection</returns>
         public static Task<TOut[]> ForEachThreaded<TIn, TOut>(this IEnumerable<TIn> list, Func<TIn, TOut> function)
         {
             TOut OnFaulted(Task<TOut> t, int itemIndex)
             {
-                Debug.LogWarning($"ForEachThreaded::Item[{itemIndex}] FAULTED (see reason below):");
-                Debug.LogException(t.Exception);
+                if (UxrGlobalSettings.Instance.LogLevelCore >= UxrLogLevel.Warnings)
+                {
+                    Debug.LogWarning($"{UxrConstants.CoreModule} ForEachThreaded::Item[{itemIndex}] faulted (see reason below):");
+                }
+
+                if (UxrGlobalSettings.Instance.LogLevelCore >= UxrLogLevel.Errors)
+                {
+                    Debug.LogException(t.Exception);
+                }
+
                 return default;
             }
 
@@ -196,6 +245,72 @@ namespace UltimateXR.Extensions.System.Collections
             {
                 yield return element.SplitCamelCase();
             }
+        }
+
+        #endregion
+
+        #region Private Methods
+
+        /// <summary>
+        ///     Compares two IEnumerable for equality, considering the order of elements.
+        ///     For dictionaries, compares key-value pairs regardless of their order.
+        /// </summary>
+        /// <param name="enumerableA">The first collection to compare</param>
+        /// <param name="enumerableB">The second collection to compare</param>
+        /// <param name="comparer">Comparison function</param>
+        /// <returns>True if the collections are equal; otherwise, false</returns>
+        private static bool ContentEqual(IEnumerable enumerableA, IEnumerable enumerableB, Func<object, object, bool> comparer)
+        {
+            // If the collections are dictionaries, compare key-value pairs
+            if (enumerableA is IDictionary dictionaryA && enumerableB is IDictionary dictionaryB)
+            {
+                // Ensure both dictionaries have the same number of elements
+                if (dictionaryA.Count != dictionaryB.Count)
+                {
+                    return false;
+                }
+
+                // Compare key-value pairs regardless of order
+                foreach (DictionaryEntry entryA in dictionaryA)
+                {
+                    if (!dictionaryB.Contains(entryA.Key) || !comparer(entryA.Value, dictionaryB[entryA.Key]))
+                    {
+                        return false;
+                    }
+                }
+
+                return true;
+            }
+
+            // If the collections are lists, do a quick test to check if they have different number of elements
+            if (enumerableA is IList listA && enumerableB is IList listB)
+            {
+                if (listA.Count != listB.Count)
+                {
+                    return false;
+                }
+            }
+
+            // If the collections are HashSets, compare elements using SetEquals
+            if (enumerableA is HashSet<object> hashSetA && enumerableB is HashSet<object> hashSetB)
+            {
+                return hashSetA.SetEquals(hashSetB);
+            }
+
+            // For non-dictionary, non-HashSet collections, compare elements
+            IEnumerator enumeratorA = enumerableA.GetEnumerator();
+            IEnumerator enumeratorB = enumerableB.GetEnumerator();
+
+            while (enumeratorA.MoveNext())
+            {
+                if (!enumeratorB.MoveNext() || !comparer(enumeratorA.Current, enumeratorB.Current))
+                {
+                    return false;
+                }
+            }
+
+            // Ensure both collections have the same number of elements
+            return !enumeratorB.MoveNext();
         }
 
         #endregion

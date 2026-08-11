@@ -7,6 +7,7 @@ using System;
 using System.Threading;
 using System.Threading.Tasks;
 using UltimateXR.Core.Components;
+using UltimateXR.Core.Settings;
 using UltimateXR.Extensions.System;
 using UltimateXR.Extensions.System.Threading;
 using UnityEngine;
@@ -24,7 +25,7 @@ namespace UltimateXR.Core.Threading
         /// <summary>
         ///     Gets whether the caller is running on the main thread.
         /// </summary>
-        public static bool IsCurrentThreadMain => !Application.isPlaying || s_mainThread == Thread.CurrentThread;
+        public static bool IsCurrentThreadMain => !ThreadSafePlayModeTracker.IsPlaying || s_mainThread == Thread.CurrentThread;
 
         #endregion
 
@@ -46,7 +47,7 @@ namespace UltimateXR.Core.Threading
         {
             action.ThrowIfNull(nameof(action));
 
-            if (!Application.isPlaying || Thread.CurrentThread == s_mainThread)
+            if (!ThreadSafePlayModeTracker.IsPlaying || Thread.CurrentThread == s_mainThread)
             {
                 action();
             }
@@ -71,7 +72,7 @@ namespace UltimateXR.Core.Threading
         /// </exception>
         public static void RunOnMainThread(params Action[] actions)
         {
-            if (!Application.isPlaying || Thread.CurrentThread == s_mainThread)
+            if (!ThreadSafePlayModeTracker.IsPlaying || Thread.CurrentThread == s_mainThread)
             {
                 foreach (Action action in actions)
                 {
@@ -111,7 +112,7 @@ namespace UltimateXR.Core.Threading
                 return Task.CompletedTask;
             }
 
-            if (!Application.isPlaying || Thread.CurrentThread == s_mainThread)
+            if (Thread.CurrentThread == s_mainThread && !ThreadSafePlayModeTracker.IsPlaying)
             {
                 action();
                 return Task.CompletedTask;
@@ -136,11 +137,19 @@ namespace UltimateXR.Core.Threading
             {
                 s_instance = this;
                 DontDestroyOnLoad(gameObject);
-                Debug.Log($"[{nameof(UxrMonoDispatcher)}] singleton successfully initialized on Awake", this);
+
+                if (UxrGlobalSettings.Instance.LogLevelCore >= UxrLogLevel.Relevant)
+                {
+                    Debug.Log($"{UxrConstants.CoreModule} {nameof(UxrMonoDispatcher)} singleton successfully initialized on Awake", this);
+                }
             }
             else if (!ReferenceEquals(s_instance, this))
             {
-                Debug.LogWarning($"[{nameof(UxrMonoDispatcher)}] singleton already initialized. Destroying secondary instance on Awake", this);
+                if (UxrGlobalSettings.Instance.LogLevelCore >= UxrLogLevel.Warnings)
+                {
+                    Debug.LogWarning($"{UxrConstants.CoreModule} {nameof(UxrMonoDispatcher)} singleton already initialized. Destroying secondary instance on Awake", this);
+                }
+                
                 Destroy(this);
             }
         }
@@ -167,7 +176,7 @@ namespace UltimateXR.Core.Threading
         private static void Initialize()
         {
             s_mainThread = Thread.CurrentThread;
-            s_instance   = FindObjectOfType<UxrMonoDispatcher>();
+            s_instance   = FindFirstObjectByType<UxrMonoDispatcher>();
             if (!(s_instance is null))
             {
                 Debug.Log($"[{nameof(UxrMonoDispatcher)} singleton successfully found in scene.");

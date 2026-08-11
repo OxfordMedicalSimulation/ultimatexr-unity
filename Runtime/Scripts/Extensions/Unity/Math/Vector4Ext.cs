@@ -6,6 +6,7 @@
 using System.Globalization;
 using System.Threading;
 using System.Threading.Tasks;
+using UltimateXR.Core;
 using UltimateXR.Extensions.System;
 using UnityEngine;
 
@@ -21,11 +22,35 @@ namespace UltimateXR.Extensions.Unity.Math
         /// <summary>
         ///     Represents a NaN vector.
         /// </summary>
-        public static ref readonly Vector4 NaN => ref s_nan;
+        public static Vector4 NaN { get; } = float.NaN * Vector4.one;
 
         #endregion
 
         #region Public Methods
+
+        /// <summary>
+        ///     Compares two Unity Vector4 objects for equality with a specified precision threshold.
+        /// </summary>
+        /// <param name="a">The first Vector4 to compare</param>
+        /// <param name="b">The second Vector4 to compare</param>
+        /// <param name="precisionThreshold">
+        ///     The precision threshold for float comparisons. Defaults to
+        ///     <see cref="UxrConstants.Math.DefaultPrecisionThreshold" />.
+        /// </param>
+        /// <returns>
+        ///     <c>true</c> if the Vector4 objects are equal; otherwise, <c>false</c>.
+        /// </returns>
+        /// <remarks>
+        ///     This method performs a component-wise comparison between two Vector4 objects.
+        ///     Each component is compared using the specified precision threshold for float comparisons.
+        /// </remarks>
+        public static bool EqualsUsingPrecision(this Vector4 a, Vector4 b, float precisionThreshold = UxrConstants.Math.DefaultPrecisionThreshold)
+        {
+            return Mathf.Abs(a.x - b.x) <= precisionThreshold &&
+                   Mathf.Abs(a.y - b.y) <= precisionThreshold &&
+                   Mathf.Abs(a.z - b.z) <= precisionThreshold &&
+                   Mathf.Abs(a.w - b.w) <= precisionThreshold;
+        }
 
         /// <summary>
         ///     Checks whether the given vector has any NaN component.
@@ -239,7 +264,6 @@ namespace UltimateXR.Extensions.Unity.Math
         private const string CardinalSeparator = ",";
 
         private static readonly char[]  s_cardinalSeparator = CardinalSeparator.ToCharArray();
-        private static readonly Vector4 s_nan               = float.NaN * Vector4.one;
 
         #endregion
     }

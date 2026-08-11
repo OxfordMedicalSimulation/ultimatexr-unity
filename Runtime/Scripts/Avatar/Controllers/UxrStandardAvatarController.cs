@@ -9,8 +9,8 @@ using UltimateXR.Animation.IK;
 using UltimateXR.Avatar.Rig;
 using UltimateXR.Core;
 using UltimateXR.Devices;
-using UltimateXR.Extensions.System.Collections;
 using UltimateXR.Extensions.Unity;
+using UltimateXR.Locomotion;
 using UltimateXR.Manipulation;
 using UltimateXR.Manipulation.HandPoses;
 using UltimateXR.UI;
@@ -127,6 +127,11 @@ namespace UltimateXR.Avatar.Controllers
         ///     Gets whether the right hand is inside an <see cref="UxrFingerPointingVolume" />.
         /// </summary>
         public bool IsRightHandInsideFingerPointingVolume => _rightHandInfo.IsInsideFingerPointingVolume;
+        
+        /// <summary>
+        ///     Gets the body IK settings.
+        /// </summary>
+        public UxrBodyIKSettings BodyIKSettings => _bodyIKSettings;
 
         /// <summary>
         ///     Gets or sets whether the avatar controller is using IK for the arms.
@@ -251,6 +256,38 @@ namespace UltimateXR.Avatar.Controllers
         #region Public Overrides UxrAvatarController
 
         /// <inheritdoc />
+        public override bool Initialized
+        {
+            get
+            {
+                if (!_initialized)
+                {
+                    return false;
+                }
+                
+                if (_bodyIK != null && !_bodyIK.Initialized)
+                {
+                    return false;
+                }
+
+                if (_leftArmIK && !_leftArmIK.Initialized)
+                {
+                    return false;
+                }
+
+                if (_rightArmIK && !_rightArmIK.Initialized)
+                {
+                    return false;
+                }
+
+                return true;
+            }
+        }
+
+        /// <inheritdoc />
+        public override bool UsesSmoothLocomotion => UxrLocomotion.GetComponents(Avatar).Any(l => l.IsSmoothLocomotion);
+
+        /// <inheritdoc />
         public override bool CanHandInteractWithUI(UxrHandSide handSide)
         {
             if (Avatar.ControllerInput.GetControllerCapabilities(handSide).HasFlag(UxrControllerInputCapabilities.TrackedHandPose))
@@ -293,9 +330,14 @@ namespace UltimateXR.Avatar.Controllers
 
             // Update arms without clavicles to check how much tension is applied on the shoulders
 
-            IEnumerable<UxrArmIKSolver> autoUpdateArmSolvers = UxrIKSolver.GetComponents(Avatar).OfType<UxrArmIKSolver>().Where(s => s.NeedsAutoUpdate);
-
-            autoUpdateArmSolvers.ForEach(s => s.SolveIKPass(UxrArmSolveOptions.None, UxrArmOverExtendMode.ExtendForearm));
+            for (int i = 0; i < ArmIKSolvers.Count; i++)
+            {
+                UxrArmIKSolver armIkSolver = ArmIKSolvers[i];
+                if (armIkSolver.isActiveAndEnabled && armIkSolver.NeedsAutoUpdate)
+                {
+                    armIkSolver.SolveIKPass(UxrArmSolveOptions.None, UxrArmOverExtendMode.ExtendForearm);
+                }
+            }
 
             // Update torso rotation
 
@@ -306,11 +348,36 @@ namespace UltimateXR.Avatar.Controllers
 
             // Update arms normally
 
-            autoUpdateArmSolvers.ForEach(s => s.SolveIK());
+            for (int i = 0; i < ArmIKSolvers.Count; i++)
+            {
+                UxrArmIKSolver armIkSolver = ArmIKSolvers[i];
+                if (armIkSolver.isActiveAndEnabled && armIkSolver.NeedsAutoUpdate)
+                {
+                    armIkSolver.SolveIK();
+                }
+            }
+        }
 
-            // Update non-arm IKs
+        /// <summary>
+        ///     Re-solves the full body IK (neck, spine, arms) using the latest camera and controller poses.
+        ///     Time-dependent smoothing (body pivot rotation, torsion damping) is skipped to avoid
+        ///     double-advancing state within the same frame.
+        ///     Intended to be called from a BeforeRender callback so the entire visible avatar matches
+        ///     the camera's final pose before each frame is rendered.
+        /// </summary>
+        public void ResyncAvatarToCamera()
+        {
+            if (_bodyIK != null && _useBodyIK)
+            {
+                _bodyIK.SkipTimeDependentUpdates = true;
+            }
 
-            UxrIKSolver.GetComponents(Avatar).Where(s => s.GetType() != typeof(UxrArmIKSolver) && s.NeedsAutoUpdate).ForEach(s => s.SolveIK());
+            SolveBodyIK();
+
+            if (_bodyIK != null && _useBodyIK)
+            {
+                _bodyIK.SkipTimeDependentUpdates = false;
+            }
         }
 
         public void SetGripPose(string poseName)
@@ -375,6 +442,16 @@ namespace UltimateXR.Avatar.Controllers
 
             _leftHandInfo.LetGrabAgain  = true;
             _rightHandInfo.LetGrabAgain = true;
+            
+            // IK
+
+            if (Avatar != null && Avatar.AvatarRigType == UxrAvatarRigType.HalfOrFullBody && _useBodyIK)
+            {
+                _bodyIK = new UxrBodyIK();
+                _bodyIK.Initialize(Avatar, _bodyIKSettings, _useArmIK, _useLegIK);
+            }
+
+            _initialized = true;
         }
 
         /// <summary>
@@ -384,7 +461,7 @@ namespace UltimateXR.Avatar.Controllers
         {
             base.OnEnable();
 
-            UxrManager.AvatarMoved                 += UxrManager_AvatarMoved;
+            UxrAvatar.GlobalAvatarMoved            += UxrAvatar_GlobalAvatarMoved;
             UxrGrabManager.Instance.ObjectGrabbed  += UxrGrabManager_ObjectGrabbed;
             UxrGrabManager.Instance.ObjectPlaced   += UxrGrabManager_ObjectPlacedOrReleased;
             UxrGrabManager.Instance.ObjectReleased += UxrGrabManager_ObjectPlacedOrReleased;
@@ -397,24 +474,10 @@ namespace UltimateXR.Avatar.Controllers
         {
             base.OnDisable();
 
-            UxrManager.AvatarMoved                 -= UxrManager_AvatarMoved;
+            UxrAvatar.GlobalAvatarMoved            -= UxrAvatar_GlobalAvatarMoved;
             UxrGrabManager.Instance.ObjectGrabbed  -= UxrGrabManager_ObjectGrabbed;
             UxrGrabManager.Instance.ObjectPlaced   -= UxrGrabManager_ObjectPlacedOrReleased;
             UxrGrabManager.Instance.ObjectReleased -= UxrGrabManager_ObjectPlacedOrReleased;
-        }
-
-        /// <summary>
-        ///     Initializes the body IK component if required.
-        /// </summary>
-        protected override void Start()
-        {
-            base.Start();
-
-            if (Avatar != null && Avatar.AvatarRigType == UxrAvatarRigType.HalfOrFullBody && _useBodyIK)
-            {
-                _bodyIK = new UxrBodyIK();
-                _bodyIK.Initialize(Avatar, _bodyIKSettings, _useArmIK, _useLegIK);
-            }
         }
 
         #endregion
@@ -426,9 +489,9 @@ namespace UltimateXR.Avatar.Controllers
         /// </summary>
         /// <param name="sender"></param>
         /// <param name="e"></param>
-        private void UxrManager_AvatarMoved(object sender, UxrAvatarMoveEventArgs e)
+        private void UxrAvatar_GlobalAvatarMoved(object sender, UxrAvatarMoveEventArgs e)
         {
-            if (_bodyIK != null && e.Avatar == Avatar)
+            if (_bodyIK != null && ReferenceEquals(e.Avatar, Avatar))
             {
                 _bodyIK.NotifyAvatarMoved(e);
             }
@@ -509,9 +572,9 @@ namespace UltimateXR.Avatar.Controllers
 
             UxrInputButtons GetRequiredGrabButtonsOverride(UxrHandSide handSide)
             {
-                if( UxrGrabManager.Instance.GetClosestGrabbableObject(Avatar, handSide, out UxrGrabbableObject grabbableObject, out int grabPoint) &&
+                if (UxrGrabManager.Instance.GetClosestGrabbableObject(Avatar, handSide, out UxrGrabbableObject grabbableObject, out int grabPoint) &&
                     !grabbableObject.GetGrabPoint(grabPoint).UseDefaultGrabButtons &&
-                    (Avatar.ControllerInput.GetButtonsEvent(handSide, grabbableObject.GetGrabPoint(grabPoint).InputButtons, UxrButtonEventType.PressDown, ProcessIgnoredInput) ||
+                    (Avatar.ControllerInput.GetButtonsEvent(handSide, grabbableObject.GetGrabPoint(grabPoint).InputButtons,                      UxrButtonEventType.PressDown, ProcessIgnoredInput) ||
                      Avatar.ControllerInput.GetButtonsEvent(handSide, handSide == UxrHandSide.Left ? LeftHandGrabButtons : RightHandGrabButtons, UxrButtonEventType.PressDown, ProcessIgnoredInput)))
                 {
                     return grabbableObject.GetGrabPoint(grabPoint).InputButtons;
@@ -570,7 +633,21 @@ namespace UltimateXR.Avatar.Controllers
 
             // Needs to be done after managers since the grab manager may force hands to be in certain positions
 
-            SolveBodyIK();
+            if (UseBodyIK)
+            {
+                SolveBodyIK();
+            }
+
+            // Update non-arm IKs. This includes fingers from the hands that hold the controllers (UxrControllerHand components).
+
+            for (int i = 0; i < NonArmIKSolvers.Count; i++)
+            {
+                UxrIKSolver ikSolver = NonArmIKSolvers[i];
+                if (ikSolver.isActiveAndEnabled && ikSolver.NeedsAutoUpdate)
+                {
+                    ikSolver.SolveIK();
+                }
+            }
         }
 
         #endregion
@@ -950,27 +1027,34 @@ namespace UltimateXR.Avatar.Controllers
         }
 
         /// <summary>
-        ///     Checks if finger tips from a list are inside a <see cref="UxrFingerPointingVolume" />, which are components that
-        ///     define a volume inside of which a hand will adopt a pointing pose using the index finger.
+        ///     Checks if fingertips from a list are inside a <see cref="UxrFingerPointingVolume" />, which are components that
+        ///     define a volume inside which a hand will adopt a pointing pose using the index finger.
         /// </summary>
-        /// <param name="fingerTips">List of finger tips to check</param>
-        /// <param name="hasLeftFingerTipInside">Returns whether the left hand has any finger tip inside the volume</param>
-        /// <param name="hasRightFingerTipInside">Returns whether the right hand has any finger tip inside the volume</param>
-        /// <param name="lastLeftInsideFingerPointingVolume">Whether the left hand had any finger tip inside last frame</param>
-        /// <param name="lastRightInsideFingerPointingVolume">Whether the right hand had any finger tip inside last frame</param>
-        private void CheckFingerTipInsideFingerPointingVolume(IEnumerable<UxrFingerTip> fingerTips,
-                                                              out bool                  hasLeftFingerTipInside,
-                                                              out bool                  hasRightFingerTipInside,
-                                                              bool                      lastLeftInsideFingerPointingVolume,
-                                                              bool                      lastRightInsideFingerPointingVolume)
+        /// <param name="fingerTips">List of fingertips to check</param>
+        /// <param name="hasLeftFingerTipInside">Returns whether the left hand has any fingertip inside the volume</param>
+        /// <param name="hasRightFingerTipInside">Returns whether the right hand has any fingertip inside the volume</param>
+        /// <param name="lastLeftInsideFingerPointingVolume">Whether the left hand had any fingertip inside the last frame</param>
+        /// <param name="lastRightInsideFingerPointingVolume">Whether the right hand had any fingertip inside the last frame</param>
+        private void CheckFingerTipInsideFingerPointingVolume(IReadOnlyList<UxrFingerTip> fingerTips,
+                                                              out bool                    hasLeftFingerTipInside,
+                                                              out bool                    hasRightFingerTipInside,
+                                                              bool                        lastLeftInsideFingerPointingVolume,
+                                                              bool                        lastRightInsideFingerPointingVolume)
         {
             hasLeftFingerTipInside  = false;
             hasRightFingerTipInside = false;
 
             if (fingerTips != null)
             {
-                foreach (UxrFingerTip fingerTip in fingerTips)
+                for (int i = 0; i < fingerTips.Count; i++)
                 {
+                    UxrFingerTip fingerTip = fingerTips[i];
+
+                    if (!fingerTip.isActiveAndEnabled)
+                    {
+                        continue;
+                    }
+
                     if (fingerTip.Side == UxrHandSide.Left)
                     {
                         if (IsInsideFingerPointingVolume(fingerTip, lastLeftInsideFingerPointingVolume))
@@ -997,8 +1081,9 @@ namespace UltimateXR.Avatar.Controllers
         /// <returns>Whether the finger tip is inside a given <see cref="UxrFingerPointingVolume" />.</returns>
         private bool IsInsideFingerPointingVolume(UxrFingerTip fingerTip, bool lastHandWasInsideFingerPointingVolume)
         {
-            foreach (UxrFingerPointingVolume volume in UxrFingerPointingVolume.AllComponents)
+            for (int i = 0; i < UxrFingerPointingVolume.AllComponents.Count; i++)
             {
+                UxrFingerPointingVolume volume = UxrFingerPointingVolume.AllComponents[i];
                 if (volume != null && volume.isActiveAndEnabled && volume.IsCompatible(fingerTip.Side) &&
                     volume.IsPointInside(fingerTip.transform.position, lastHandWasInsideFingerPointingVolume ? FlexibleFingerVolumeMargin : 0.0f))
                 {
@@ -1043,7 +1128,6 @@ namespace UltimateXR.Avatar.Controllers
             if (arm.UpperArm && arm.Forearm && arm.Hand.Wrist)
             {
                 UxrArmIKSolver armIK = arm.UpperArm.gameObject.GetOrAddComponent<UxrArmIKSolver>();
-                armIK.Side                 = side;
                 armIK.RelaxedElbowAperture = _armIKElbowAperture;
                 armIK.OverExtendMode       = _armIKOverExtendMode;
 
@@ -1134,13 +1218,49 @@ namespace UltimateXR.Avatar.Controllers
 
         #region Private Types & Data
 
-        private const float FlexibleFingerVolumeMargin = 0.1f;
+        /// <summary>
+        ///     Returns all the IK solvers for the arms, enabled or not.
+        /// </summary>
+        private IReadOnlyList<UxrArmIKSolver> ArmIKSolvers
+        {
+            get
+            {
+                if (_armIkSolvers == null)
+                {
+                    _armIkSolvers = Avatar.GetComponentsInChildren<UxrArmIKSolver>(true).ToList();
+                }
 
-        private readonly HandInfo       _leftHandInfo  = new HandInfo();
-        private readonly HandInfo       _rightHandInfo = new HandInfo();
-        private          UxrArmIKSolver _leftArmIK;
-        private          UxrArmIKSolver _rightArmIK;
-        private          UxrBodyIK      _bodyIK;
+                return _armIkSolvers;
+            }
+        }
+
+        /// <summary>
+        ///     Returns all the non-arm IK solvers, enabled or not.
+        /// </summary>
+        private IReadOnlyList<UxrIKSolver> NonArmIKSolvers
+        {
+            get
+            {
+                if (_nonArmIkSolvers == null)
+                {
+                    _nonArmIkSolvers = Avatar.GetComponentsInChildren<UxrIKSolver>(true).Where(t => t is not UxrArmIKSolver).ToList();
+                }
+
+                return _nonArmIkSolvers;
+            }
+        }
+
+        private const    float    FlexibleFingerVolumeMargin = 0.1f;
+        private readonly HandInfo _leftHandInfo              = new HandInfo();
+        private readonly HandInfo _rightHandInfo             = new HandInfo();
+
+        private List<UxrArmIKSolver> _armIkSolvers;
+        private List<UxrIKSolver>    _nonArmIkSolvers;
+
+        private bool           _initialized;
+        private UxrArmIKSolver _leftArmIK;
+        private UxrArmIKSolver _rightArmIK;
+        private UxrBodyIK      _bodyIK;
 
         #endregion
     }

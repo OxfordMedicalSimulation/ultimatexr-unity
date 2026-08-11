@@ -3,12 +3,11 @@
 //   Copyright (c) VRMADA, All rights reserved.
 // </copyright>
 // --------------------------------------------------------------------------------------------------------------------
-using System;
 using System.Collections.Generic;
 using System.Linq;
+using UltimateXR.Core;
 using UnityEditor;
 using UnityEngine;
-using Object = UnityEngine.Object;
 
 namespace UltimateXR.Editor
 {
@@ -72,7 +71,7 @@ namespace UltimateXR.Editor
         /// <param name="content">Button text and tooltip</param>
         /// <param name="width">Width in pixels. A negative value will assign the required width for the label</param>
         /// <returns>Whether the button was pressed during the current frame</returns>
-        public static bool CenteredButton(GUIContent content, int width = ButtonWidth)
+        public static bool CenteredButton(GUIContent content, int width = UxrConstants.Editor.DefaultButtonWidth)
         {
             bool pressed = false;
 
@@ -131,83 +130,6 @@ namespace UltimateXR.Editor
             float posX         = rect.x + leftPadding + column * (separation + elementWidth);
 
             return new Rect(posX, rect.y, elementWidth, rect.height);
-        }
-
-        /// <summary>
-        ///     Stores a set of elements in an array serialized property. The elements to store derive from
-        ///     <see cref="UnityEngine.Object" />.
-        /// </summary>
-        /// <typeparam name="T">Type of elements to store</typeparam>
-        /// <param name="propertyArray">The <see cref="SerializedProperty" /> to assign</param>
-        /// <param name="elements">The elements to store</param>
-        public static void AssignSerializedPropertyArray<T>(SerializedProperty propertyArray, IEnumerable<T> elements) where T : Object
-        {
-            propertyArray.ClearArray();
-            propertyArray.arraySize = elements.Count();
-
-            int index = 0;
-
-            foreach (T element in elements)
-            {
-                propertyArray.GetArrayElementAtIndex(index).objectReferenceValue = element;
-                index++;
-            }
-        }
-
-        /// <summary>
-        ///     Stores a set of elements in an array serialized property. The elements to store should be of a simple type (bool,
-        ///     int, float, string) or Unity type (Vector3, Color).
-        /// </summary>
-        /// <typeparam name="T">Type of elements to store</typeparam>
-        /// <param name="propertyArray">The <see cref="SerializedProperty" /> to assign</param>
-        /// <param name="elements">The elements to store</param>
-        public static void AssignSerializedPropertySimpleTypeArray<T>(SerializedProperty propertyArray, IEnumerable<T> elements)
-        {
-            propertyArray.ClearArray();
-            propertyArray.arraySize = elements.Count();
-
-            int index = 0;
-
-            foreach (T element in elements)
-            {
-                if (element == null)
-                {
-                    continue;
-                }
-
-                SerializedProperty property = propertyArray.GetArrayElementAtIndex(index);
-
-                switch (element)
-                {
-                    case bool b:
-                        property.boolValue = b;
-                        break;
-
-                    case int i:
-                        property.intValue = i;
-                        break;
-
-                    case float f:
-                        property.floatValue = f;
-                        break;
-
-                    case string s:
-                        property.stringValue = s;
-                        break;
-
-                    case Color col:
-                        property.colorValue = col;
-                        break;
-
-                    case Vector3 v3:
-                        property.vector3Value = v3;
-                        break;
-
-                    default: throw new NotSupportedException($"Conversion to {typeof(T)} serialized property array is not supported yet");
-                }
-
-                index++;
-            }
         }
 
         /// <summary>

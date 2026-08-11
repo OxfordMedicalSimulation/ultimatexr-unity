@@ -10,6 +10,7 @@ using System.Security.Cryptography;
 using System.Text;
 using System.Text.RegularExpressions;
 using UnityEngine;
+using UnityEngine.UI;
 using Random = UnityEngine.Random;
 
 namespace UltimateXR.Extensions.System
@@ -88,6 +89,20 @@ namespace UltimateXR.Extensions.System
         }
 
         /// <summary>
+        ///     Gets a Guid result of hashing the string using SHA-256 and keeping the first 16 bytes.
+        /// </summary>
+        /// <param name="self">String to get the Guid hash value of</param>
+        /// <returns>Guid hash value of the string</returns>
+        public static Guid GetGuid(this string self)
+        {
+            // Take the first 16 bytes of the hash to create a Guid
+            byte[] guidBytes = new byte[16];
+            Buffer.BlockCopy(GetSha256(self), 0, guidBytes, 0, guidBytes.Length);
+
+            return new Guid(guidBytes);
+        }
+
+        /// <summary>
         ///     Replaces the invalid characters in a path with a given character.
         /// </summary>
         /// <param name="self">The path to process</param>
@@ -132,53 +147,6 @@ namespace UltimateXR.Extensions.System
         public static string ReplaceInvalidFilePathChars(this string self, char fallbackChar = PathFallbackChar)
         {
             return self.ReplaceInvalidPathChars(fallbackChar, Path.GetInvalidFileNameChars());
-        }
-
-        /// <summary>
-        ///     Checks if a path is a child of another path.
-        ///     Adapted from https://stackoverflow.com/questions/8091829/how-to-check-if-one-path-is-a-child-of-another-path
-        /// </summary>
-        /// <param name="candidate">Path candidate</param>
-        /// <param name="other">Path to check against</param>
-        /// <param name="canBeSame">Whether to also consider the same directory as valid</param>
-        /// <returns>Whether the path is child of the parent path</returns>
-        public static bool IsSubDirectoryOf(this string candidate, string other, bool canBeSame = true)
-        {
-            var isChild = false;
-            try
-            {
-                // Some initial corrections to avoid false negatives:
-
-                var candidateInfo = new DirectoryInfo(candidate.Replace(@"\", @"/").TrimEnd('/'));
-                var otherInfo     = new DirectoryInfo(other.Replace(@"\", @"/").TrimEnd('/'));
-
-                // Check if same directory
-
-                if (canBeSame && string.Compare(candidateInfo.FullName, otherInfo.FullName, StringComparison.OrdinalIgnoreCase) == 0)
-                {
-                    return true;
-                }
-                
-                // Start traversing upwards
-
-                while (candidateInfo.Parent != null)
-                {
-                    if (string.Equals(candidateInfo.Parent.FullName, otherInfo.FullName, StringComparison.OrdinalIgnoreCase))
-                    {
-                        isChild = true;
-                        break;
-                    }
-
-                    candidateInfo = candidateInfo.Parent;
-                }
-            }
-            catch (Exception error)
-            {
-                var message = $"Unable to check directories {candidate} and {other}: {error}";
-                Debug.LogError(message);
-            }
-
-            return isChild;
         }
 
         /// <summary>
@@ -258,6 +226,81 @@ namespace UltimateXR.Extensions.System
             {
                 throw new ArgumentException("Empty string is not allowed", paramName);
             }
+        }
+
+        /// <summary>
+        ///     Assigns a string value to a Unity UI Text component on the specified GameObject.
+        ///     Automatically detects and assigns to either legacy Unity UI Text components or
+        ///     TextMeshPro UGUI components, providing compatibility across different text rendering systems.
+        /// </summary>
+        /// <param name="self">The string value to assign to the text component</param>
+        /// <param name="textObject">
+        ///     The GameObject containing either a Text component (legacy Unity UI) or a
+        ///     TextMeshProUGUI component (TextMeshPro). The method will check for both types
+        ///     and assign the string to whichever component is found.
+        /// </param>
+        /// <param name="useGetComponentInChildren">
+        ///     Whether to try to get the component using GetComponentInChildren. It uses
+        ///     GetComponent by default.
+        /// </param>
+        public static void AssignToTextUiComponent(this string self, GameObject textObject, bool useGetComponentInChildren = false)
+        {
+            Text textComponent = useGetComponentInChildren ? textObject.GetComponentInChildren<Text>(true) : textObject.GetComponent<Text>();
+
+            if (textComponent != null)
+            {
+                textComponent.text = self;
+                return;
+            }
+
+#if ULTIMATEXR_UNITY_TMPRO
+
+            TMPro.TextMeshProUGUI tmproComponent = useGetComponentInChildren ? textObject.GetComponentInChildren<TMPro.TextMeshProUGUI>(true) : textObject.GetComponent<TMPro.TextMeshProUGUI>();
+
+            if (tmproComponent != null)
+            {
+                tmproComponent.text = self;
+            }
+#endif
+        }
+
+        /// <summary>
+        ///     Retrieves the text string from a Unity UI Text component on the specified GameObject.
+        ///     Automatically detects and retrieves text from either legacy Unity UI Text components or
+        ///     TextMeshPro UGUI components, providing compatibility across different text rendering systems.
+        /// </summary>
+        /// <param name="textObject">
+        ///     The GameObject containing either a Text component (legacy Unity UI) or a
+        ///     TextMeshProUGUI component (TextMeshPro). The method will check for both types
+        ///     and return the text from whichever component is found.
+        /// </param>
+        /// <param name="useGetComponentInChildren">
+        ///     Whether to try to get the component using GetComponentInChildren. It uses
+        ///     GetComponent by default.
+        /// </param>
+        /// <returns>
+        ///     The text string from the UI component if found, or null if neither a Text component
+        ///     nor a TextMeshProUGUI component exists on the GameObject.
+        /// </returns>
+        public static string GetFromTextUiComponent(GameObject textObject, bool useGetComponentInChildren = false)
+        {
+            Text textComponent = useGetComponentInChildren ? textObject.GetComponentInChildren<Text>(true) : textObject.GetComponent<Text>();
+
+            if (textComponent != null)
+            {
+                return textComponent.text;
+            }
+
+#if ULTIMATEXR_UNITY_TMPRO
+
+            TMPro.TextMeshProUGUI tmproComponent = useGetComponentInChildren ? textObject.GetComponentInChildren<TMPro.TextMeshProUGUI>(true) : textObject.GetComponent<TMPro.TextMeshProUGUI>();
+
+            if (tmproComponent != null)
+            {
+                return tmproComponent.text;
+            }
+#endif
+            return null;
         }
 
         #endregion

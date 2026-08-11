@@ -4,6 +4,7 @@
 // </copyright>
 // --------------------------------------------------------------------------------------------------------------------
 using System;
+using UltimateXR.Core.Settings;
 using UnityEngine;
 
 namespace UltimateXR.Core.Math
@@ -14,7 +15,7 @@ namespace UltimateXR.Core.Math
     ///     See the UxrAxisPropertyDrawer editor class for the integration with Unity Editor.
     /// </summary>
     [Serializable]
-    public class UxrAxis : IEquatable<UxrAxis>
+    public struct UxrAxis : IEquatable<UxrAxis>
     {
         #region Inspector Properties/Serialized Fields
 
@@ -38,6 +39,16 @@ namespace UltimateXR.Core.Math
         /// </summary>
         public UxrAxis OtherPerpendicular => (_axis + 2) % 3;
 
+        /// <summary>
+        ///     Returns a perpendicular axis as int.
+        /// </summary>
+        public int PerpendicularAsInt => (_axis + 1) % 3;
+
+        /// <summary>
+        ///     Returns the other perpendicular axis as int.
+        /// </summary>
+        public int OtherPerpendicularAsInt => (_axis + 2) % 3;
+
         #endregion
 
         #region Constructors & Finalizer
@@ -52,7 +63,10 @@ namespace UltimateXR.Core.Math
             
             if (axis < 0 || axis > 3)
             {
-                Debug.LogError($"Assigning invalid value to axis: {axis}");
+                if (UxrGlobalSettings.Instance.LogLevelCore >= UxrLogLevel.Errors)
+                {
+                    Debug.LogError($"{UxrConstants.CoreModule} Assigning invalid value to axis: {axis}");
+                }
             }
             
 #endif
@@ -66,15 +80,6 @@ namespace UltimateXR.Core.Math
         /// <inheritdoc />
         public bool Equals(UxrAxis other)
         {
-            if (ReferenceEquals(null, other))
-            {
-                return false;
-            }
-            if (ReferenceEquals(this, other))
-            {
-                return true;
-            }
-            
             return _axis == other._axis;
         }
 
@@ -96,26 +101,13 @@ namespace UltimateXR.Core.Math
         /// <inheritdoc />
         public override bool Equals(object obj)
         {
-            if (ReferenceEquals(null, obj))
-            {
-                return false;
-            }
-            if (ReferenceEquals(this, obj))
-            {
-                return true;
-            }
-            if (obj.GetType() != GetType())
-            {
-                return false;
-            }
-
-            return Equals((UxrAxis)obj);
+            return Equals(obj is UxrAxis axis ? axis : default);
         }
 
         /// <inheritdoc />
         public override int GetHashCode()
         {
-            return _axis;
+            return _axis.GetHashCode();
         }
 
         #endregion
@@ -132,7 +124,11 @@ namespace UltimateXR.Core.Math
         {
             if (axis1 == axis2)
             {
-                Debug.LogError($"{nameof(UxrAxis)}: Got same axis for {nameof(OtherThan)} (axis1)");
+                if (UxrGlobalSettings.Instance.LogLevelCore >= UxrLogLevel.Errors)
+                {
+                    Debug.LogError($"{UxrConstants.CoreModule} {nameof(UxrAxis)}: Got same axis for {nameof(OtherThan)} (axis1)");
+                }
+                
                 return axis1.Perpendicular;
             }
 
@@ -209,16 +205,6 @@ namespace UltimateXR.Core.Math
         /// <returns>Whether the two operands are equal</returns>
         public static bool operator ==(UxrAxis a, UxrAxis b)
         {
-            if (ReferenceEquals(a, null) && ReferenceEquals(b, null))
-            {
-                return true;
-            }
-
-            if (ReferenceEquals(a, null) || ReferenceEquals(b, null))
-            {
-                return false;
-            }
-
             return a.Equals(b);
         }
 

@@ -4,26 +4,35 @@
 // </copyright>
 // --------------------------------------------------------------------------------------------------------------------
 using System;
+using UltimateXR.Core.Unique;
 
 namespace UltimateXR.Core.StateSync
 {
     /// <summary>
     ///     <para>
-    ///         Interface for entities that are able to expose internal state changes described by a
-    ///         <see cref="UxrStateSyncEventArgs" /> raised through a <see cref="StateChanged" /> event.
-    ///         To support the synchronization, classes that implement this interface are also able to reproduce
-    ///         state changes using <see cref="SyncState" />.
+    ///         Interface for components to synchronize their state changes. State changes can be intercepted,
+    ///         serialized, deserialized and be reproduced back in a different environment. This can be used to
+    ///         synchronize state changes in a network session or save state changes to disk.
     ///     </para>
-    ///     This interface should be implemented in entities relevant in network synchronization.
+    ///     <para>
+    ///         Relevant internal state changes are notified through a <see cref="StateChanged" /> event. The state
+    ///         change is described by a <see cref="UxrSyncEventArgs" /> object. Each <see cref="UxrSyncEventArgs" />
+    ///         can be reproduced back using the <see cref="SyncState" /> method. This architecture can be used to
+    ///         listen for changes and reproduce them on the other clients, since <see cref="UxrSyncEventArgs" />
+    ///         objects can be serialized.
+    ///     </para>
+    ///     <para>
+    ///         To leverage the implementation of this interface, consider using <see cref="UxrStateSyncImplementer{T}" />.
+    ///     </para>
     /// </summary>
-    public interface IUxrStateSync
+    public interface IUxrStateSync : IUxrUniqueId
     {
         #region Public Types & Data
 
         /// <summary>
-        ///     Event raised when a relevant state of an object changed and requires storage/synchronization.
+        ///     Event raised when a relevant state of a component changed and requires synchronization.
         /// </summary>
-        event EventHandler<UxrStateSyncEventArgs> StateChanged;
+        event EventHandler<UxrSyncEventArgs> StateChanged;
 
         #endregion
 
@@ -33,8 +42,7 @@ namespace UltimateXR.Core.StateSync
         ///     Executes the state change described by <see cref="e" />.
         /// </summary>
         /// <param name="e">State change information</param>
-        /// <param name="propagateEvents">Whether the event should propagate other internal events</param>
-        void SyncState(UxrStateSyncEventArgs e, bool propagateEvents);
+        void SyncState(UxrSyncEventArgs e);
 
         #endregion
     }

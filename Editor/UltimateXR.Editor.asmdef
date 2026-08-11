@@ -35,6 +35,16 @@
             "name": "com.magicleap.unitysdk",
             "expression": "",
             "define": "ULTIMATEXR_USE_MAGICLEAP_SDK"
+        },
+        {
+            "name": "com.unity.netcode.gameobjects",
+            "expression": "",
+            "define": "ULTIMATEXR_USE_UNITY_NETCODE"
+        },
+        {
+            "name": "com.unity.xr.openxr",
+            "expression": "",
+            "define": "ULTIMATEXR_UNITY_XR_OPENXR"
         }
     ],
     "noEngineReferences": false

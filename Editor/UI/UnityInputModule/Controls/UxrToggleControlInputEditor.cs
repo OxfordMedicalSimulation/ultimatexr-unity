@@ -25,12 +25,11 @@ namespace UltimateXR.Editor.UI.UnityInputModule.Controls
         {
             base.OnEnable();
 
-            _propertyInitialStateIsSelected = serializedObject.FindProperty("_initialStateIsSelected");
+            _propertyInitialState           = serializedObject.FindProperty("_initialState");
             _propertyCanToggleOnlyOnce      = serializedObject.FindProperty("_canToggleOnlyOnce");
-            _propertyText                   = serializedObject.FindProperty("_text");
             _propertyEnableWhenSelected     = serializedObject.FindProperty("_enableWhenSelected");
             _propertyEnableWhenNotSelected  = serializedObject.FindProperty("_enableWhenNotSelected");
-            _propertyTextColorChanges       = serializedObject.FindProperty("_textColorChanges");
+            _propertyColorChanges           = serializedObject.FindProperty("_colorChanges");
             _propertyAudioToggleOn          = serializedObject.FindProperty("_audioToggleOn");
             _propertyAudioToggleOff         = serializedObject.FindProperty("_audioToggleOff");
             _propertyAudioToggleOnVolume    = serializedObject.FindProperty("_audioToggleOnVolume");
@@ -46,27 +45,26 @@ namespace UltimateXR.Editor.UI.UnityInputModule.Controls
         /// </summary>
         protected override void OnControlInputInspectorGUI()
         {
-            EditorGUILayout.PropertyField(_propertyInitialStateIsSelected);
+            EditorGUILayout.PropertyField(_propertyInitialState);
             EditorGUILayout.PropertyField(_propertyCanToggleOnlyOnce);
-            EditorGUILayout.PropertyField(_propertyText);
             EditorGUILayout.PropertyField(_propertyEnableWhenSelected);
             EditorGUILayout.PropertyField(_propertyEnableWhenNotSelected);
-            EditorGUILayout.PropertyField(_propertyTextColorChanges);
+            EditorGUILayout.PropertyField(_propertyColorChanges);
             EditorGUILayout.PropertyField(_propertyAudioToggleOn);
             EditorGUILayout.PropertyField(_propertyAudioToggleOff);
             EditorGUILayout.PropertyField(_propertyAudioToggleOnVolume);
+            EditorGUILayout.PropertyField(_propertyAudioToggleOffVolume);
         }
 
         #endregion
 
         #region Private Types & Data
 
-        private SerializedProperty _propertyInitialStateIsSelected;
+        private SerializedProperty _propertyInitialState;
         private SerializedProperty _propertyCanToggleOnlyOnce;
-        private SerializedProperty _propertyText;
         private SerializedProperty _propertyEnableWhenSelected;
         private SerializedProperty _propertyEnableWhenNotSelected;
-        private SerializedProperty _propertyTextColorChanges;
+        private SerializedProperty _propertyColorChanges;
         private SerializedProperty _propertyAudioToggleOn;
         private SerializedProperty _propertyAudioToggleOff;
         private SerializedProperty _propertyAudioToggleOnVolume;

@@ -1614,9 +1614,15 @@ namespace UltimateXR.Devices
         protected const float AnalogAsDPadThreshold = 0.2f;
         
         /// <summary>
-        ///     Minimum button press pressure required on trigger to act as a button 
+        ///     Minimum button press pressure required on trigger to act as a button
         /// </summary>
         protected float ButtonPressThreshold = 0.5f;
+
+        /// <summary>
+        /// Owen - 26/08/12 - Hack Solution to stop trigger release from firing multiple times.
+        /// Minimum released pressure before the user can press back down to retrigger <see cref="ButtonPressThreshold"/>
+        /// </summary>
+        protected float ButtonReleaseThreshold = 0.3f;
 
         /// <summary>
         ///     Default haptic amplitude if not specified

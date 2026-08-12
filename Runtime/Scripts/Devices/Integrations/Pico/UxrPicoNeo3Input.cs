@@ -19,6 +19,7 @@ namespace UltimateXR.Devices.Integrations.Pico
         {
             base.Awake();
             ButtonPressThreshold = 0.71f;
+            ButtonReleaseThreshold = 0.45f;
         }
 
         /// <summary>

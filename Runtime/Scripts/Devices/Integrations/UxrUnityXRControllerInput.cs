@@ -7,6 +7,7 @@ using System.Collections.Generic;
 using System.Linq;
 using UltimateXR.Core;
 using UltimateXR.Core.Settings;
+using UltimateXR.Devices.Integrations.Pico;
 using UltimateXR.Haptics;
 using UnityEngine;
 using UnityEngine.XR;
@@ -875,7 +876,8 @@ namespace UltimateXR.Devices.Integrations
                 if (inputDevice.TryGetFeatureValue(CommonUsages.trigger, out float valueFloat))
                 {
                     // We try getting the float value first because in analog buttons like the oculus it will trigger too early with the bool version.
-                    return valueFloat > AnalogAsDPadThreshold;
+                    // Owen - 26/08/12 - Original implementation caused the trigger to fire off too many times when the trigger is held at a semi depressed state.
+                    return GetAnalogTriggerContact(handSide, valueFloat);
                 }
 
                 if (inputDevice.TryGetFeatureValue(CommonUsages.triggerButton, out bool value))
@@ -955,6 +957,35 @@ namespace UltimateXR.Devices.Integrations
             return false;
         }
 
+        /// <summary>
+        /// Solution hack to stop triggers from firing multiple times within one trigger press/release.
+        /// Makes it so that the event can't be fired again until the trigger is released beyond the press threshold.
+        /// </summary>
+        /// <param name="handSide">Which controller side the value belongs to</param>
+        /// <param name="value">Current analog trigger value</param>
+        /// <returns>Whether the trigger is currently pressed</returns>
+        private bool GetAnalogTriggerContact(UxrHandSide handSide, float value)
+        {
+            bool wasPressed = handSide == UxrHandSide.Left ? _triggerPressedLeft : _triggerPressedRight;
+
+            // Clamped so a device that lowers ButtonPressThreshold without lowering ButtonReleaseThreshold can't end up
+            // with a release point above the press point, which would latch the trigger down permanently.
+            float threshold = wasPressed ? Mathf.Min(ButtonReleaseThreshold, ButtonPressThreshold) : ButtonPressThreshold;
+
+            bool isPressed = value > threshold;
+
+            if (handSide == UxrHandSide.Left)
+            {
+                _triggerPressedLeft = isPressed;
+            }
+            else
+            {
+                _triggerPressedRight = isPressed;
+            }
+
+            return isPressed;
+        }
+
         #endregion
 
         #region Protected Types & Data
@@ -986,6 +1017,10 @@ namespace UltimateXR.Devices.Integrations
         private InputDevice _deviceRight;
         private uint        _leftHapticChannel;
         private uint        _rightHapticChannel;
+
+        // Latched analog trigger press state, required by the hysteresis in GetAnalogTriggerContact().
+        private bool _triggerPressedLeft;
+        private bool _triggerPressedRight;
 
         #endregion
     }

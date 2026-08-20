@@ -69,6 +69,27 @@ namespace UltimateXR.UI.UnityInputModule
         public bool PreviousFingerTipPosWasInsideControl { get; internal set; }
 
         /// <summary>
+        ///     Gets the UI element that <see cref="FingerTipPosIsInsideControl" /> was computed against.
+        /// </summary>
+        public GameObject FingerTipPosControl { get; internal set; }
+
+        /// <summary>
+        ///     Gets whether the fingertip is allowed to press a control. A fingertip that pressed one has to be pulled back
+        ///     away from it before it can press anything again.
+        /// </summary>
+        public bool FingerTipPressArmed { get; internal set; } = true;
+
+        /// <summary>
+        ///     Gets the world space plane of the control the fingertip pressed last.
+        /// </summary>
+        public Plane FingerTipPressPlane { get; internal set; }
+
+        /// <summary>
+        ///     Gets the unscaled time at which the fingertip pressed a control last.
+        /// </summary>
+        public float FingerTipPressTime { get; internal set; }
+
+        /// <summary>
         ///     Gets whether the world position has been initialized.
         /// </summary>
         public bool WorldPosInitialized { get; internal set; }

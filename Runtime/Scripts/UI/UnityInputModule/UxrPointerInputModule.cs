@@ -40,6 +40,9 @@ namespace UltimateXR.UI.UnityInputModule
         [SerializeField] protected bool                _uiClickOnPress               = true;
         [SerializeField] protected UxrInteractionTypes _interactionTypesOnAutoEnable = UxrInteractionTypes.FingerTips | UxrInteractionTypes.LaserPointers;
         [SerializeField] protected float               _fingerTipMinHoverDistance    = UxrFingerTipRaycaster.FingerTipMinHoverDistanceDefault;
+        [SerializeField] protected float               _fingerTipReleaseDistance     = 0.004f;
+        [SerializeField] protected float               _fingerTipRearmDistance       = 0.01f;
+        [SerializeField] protected float               _fingerTipRearmTimeout        = 0.4f;
         [SerializeField] protected int                 _dragThreshold                = 40;
         [SerializeField] protected bool               _enableDragSpeedHaptics;
         #endregion
@@ -80,6 +83,28 @@ namespace UltimateXR.UI.UnityInputModule
         ///     <see cref="InteractionTypesOnAutoEnable" /> is <see cref="UxrInteractionTypes.FingerTips" />,
         /// </summary>
         public float FingerTipMinHoverDistance => _fingerTipMinHoverDistance;
+
+        /// <summary>
+        ///     Gets how far in front of a UI element the finger tip has to be pulled back before the press on it is
+        ///     released. A finger tip resting on the surface of an element sits right on the plane that separates pressed
+        ///     from not pressed, so without this margin the smallest hand movement crosses it repeatedly and every
+        ///     crossing inwards counts as another press.
+        /// </summary>
+        public float FingerTipReleaseDistance => _fingerTipReleaseDistance;
+
+        /// <summary>
+        ///     Gets how far back a finger tip that pressed a control has to be pulled before it is allowed to press
+        ///     anything again. It is measured in front of the plane of the control that was pressed.
+        /// </summary>
+        public float FingerTipRearmDistance => _fingerTipRearmDistance;
+
+        /// <summary>
+        ///     Gets how long a finger tip that pressed a control waits, at most, before it is allowed to press anything
+        ///     again. The plane it is measured against is remembered in world space, so if the control or the avatar
+        ///     moves after the press, that plane no longer lines up with anything and the finger tip may never register
+        ///     as pulled back. This timeout keeps it from being locked out of pressing for good.
+        /// </summary>
+        public float FingerTipRearmTimeout => _fingerTipRearmTimeout;
 
         /// <summary>
         ///     Gets whether continuous haptic feedback proportional to drag speed is sent while dragging a UI element
@@ -958,11 +983,28 @@ namespace UltimateXR.UI.UnityInputModule
 
             data.ReleasedThisFrame = data.pointerPress != null && !fingerTipValid;
 
+            // A finger tip that pressed a control can't press again until it has been pulled back away from it. Tapping a
+            // control often hides the page it belongs to, and the rest of that same forward movement would otherwise carry
+            // straight on into whatever control was sitting behind it and press that one too.
+
+            if (!data.FingerTipPressArmed)
+            {
+                bool pulledBack = data.FingerTipPressPlane.GetDistanceToPoint(data.WorldPos) < -Mathf.Max(0.0f, _fingerTipRearmDistance);
+                bool timedOut = Time.unscaledTime - data.FingerTipPressTime > Mathf.Max(0.0f, _fingerTipRearmTimeout);
+
+                data.FingerTipPressArmed = pulledBack || timedOut;
+            }
+
             // Check for presses/releases by comparing the fingertip current/last positions against the UI object's plane
 
             if (data.pointerEnter && fingerTipValid)
             {
+                // The inside/outside state only means anything against the element it was measured on. Remember which
+                // element that was, because the finger tip can move to a different one from one frame to the next.
+                bool sameControl = data.FingerTipPosControl == data.pointerEnter;
+
                 data.FingerTipPosIsInsideControl = !IsFingerTipOutside(data, data.pointerEnter);
+                data.FingerTipPosControl = data.pointerEnter;
 
                 if (!data.FingerTipPosInitialized)
                 {
@@ -972,7 +1014,19 @@ namespace UltimateXR.UI.UnityInputModule
                 {
                     if (data.FingerTipPosIsInsideControl && !data.PreviousFingerTipPosWasInsideControl)
                     {
-                        data.PressedThisFrame = true;
+                        // A press needs the finger tip to have crossed into the same element it was being measured
+                        // against, and to have been pulled back since the last press. Anything else is the tail end of a
+                        // movement that has already pressed something.
+                        data.PressedThisFrame = sameControl && data.FingerTipPressArmed;
+
+                        if (data.PressedThisFrame)
+                        {
+                            Transform controlTransform = data.pointerEnter.transform;
+
+                            data.FingerTipPressArmed = false;
+                            data.FingerTipPressPlane = new Plane(controlTransform.forward, controlTransform.position);
+                            data.FingerTipPressTime = Time.unscaledTime;
+                        }
                     }
                     else if (!data.FingerTipPosIsInsideControl && data.PreviousFingerTipPosWasInsideControl)
                     {
@@ -1170,13 +1224,20 @@ namespace UltimateXR.UI.UnityInputModule
 
         /// <summary>
         ///     Gets whether a finger tip is on the front side of the plane where the control lies.
+        ///     A finger tip that is already behind the plane has to be pulled back <see cref="FingerTipReleaseDistance" />
+        ///     in front of it to count as being on the front side again, so that a finger tip held against the surface
+        ///     doesn't flip sides with every small hand movement.
         /// </summary>
         /// <param name="pointerEventData">Pointer event data</param>
         /// <param name="uiGameObject">Control</param>
         /// <returns>Whether the finger tip is on the front side</returns>
         private bool IsFingerTipOutside(UxrPointerEventData pointerEventData, GameObject uiGameObject)
         {
-            return Vector3.Dot(uiGameObject.transform.position - pointerEventData.WorldPos, uiGameObject.transform.forward) > 0.0f;
+            Transform controlTransform = uiGameObject.transform;
+            float depth = Vector3.Dot(pointerEventData.WorldPos - controlTransform.position, controlTransform.forward);
+            bool wasInside = pointerEventData.FingerTipPosControl == uiGameObject && pointerEventData.FingerTipPosIsInsideControl;
+
+            return depth < (wasInside ? -Mathf.Max(0.0f, _fingerTipReleaseDistance) : 0.0f);
         }
 
         #endregion

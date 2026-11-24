@@ -1661,7 +1661,7 @@ namespace UltimateXR.Core
 
             DestroyPrecachedInstances();
 
-            _precacheInstances = new Dictionary<int, GameObject>();
+            _precacheInstances = new Dictionary<EntityId, GameObject>();
 
             for (int sceneIndex = 0; sceneIndex < SceneManager.sceneCount; ++sceneIndex)
             {
@@ -2118,7 +2118,7 @@ namespace UltimateXR.Core
         /// <param name="dynamicInstances">List of loaded instances.</param>
         /// <param name="scene">Scene to get the components from.</param>
         /// <param name="avatar">Current avatar.</param>
-        private void AddScenePrecachedInstances(Dictionary<int, GameObject> dynamicInstances, Scene scene, UxrAvatar avatar)
+        private void AddScenePrecachedInstances(Dictionary<EntityId, GameObject> dynamicInstances, Scene scene, UxrAvatar avatar)
         {
             for (int rootIndex = 0; rootIndex < scene.rootCount; ++rootIndex)
             {
@@ -2130,7 +2130,7 @@ namespace UltimateXR.Core
                     {
                         foreach (GameObject precachedInstance in precacheable.PrecachedInstances)
                         {
-                            if (precachedInstance != null && !dynamicInstances.ContainsKey(precachedInstance.GetInstanceID()))
+                            if (precachedInstance != null && !dynamicInstances.ContainsKey(precachedInstance.GetEntityId()))
                             {
                                 // Instantiate
                                 GameObject dynamicInstance = Instantiate(precachedInstance,
@@ -2138,7 +2138,7 @@ namespace UltimateXR.Core
                                                                          avatar.CameraTransform.rotation,
                                                                          Instance.transform);
 
-                                dynamicInstances.Add(precachedInstance.GetInstanceID(), dynamicInstance);
+                                dynamicInstances.Add(precachedInstance.GetEntityId(), dynamicInstance);
 
                                 // Avoid sounds
                                 AudioSource[] audioSources = dynamicInstance.GetComponentsInChildren<AudioSource>(true);
@@ -2167,7 +2167,7 @@ namespace UltimateXR.Core
         {
             if (_precacheInstances != null)
             {
-                foreach (KeyValuePair<int, GameObject> dynamicInstancePair in _precacheInstances)
+                foreach (KeyValuePair<EntityId, GameObject> dynamicInstancePair in _precacheInstances)
                 {
                     if (dynamicInstancePair.Value != null)
                     {
@@ -2276,7 +2276,7 @@ namespace UltimateXR.Core
         private const int StateSerializationVersion = 0;
 
         private Coroutine                   _precacheCoroutine;
-        private Dictionary<int, GameObject> _precacheInstances;
+        private Dictionary<EntityId, GameObject> _precacheInstances;
         private Coroutine                   _teleportCoroutine;
         private Action<bool>                _teleportFinishedCallback;
 
